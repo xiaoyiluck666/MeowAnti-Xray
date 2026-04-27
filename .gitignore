@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+.gradle-vscode/
+build/
+out/
+bin/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local archives / temp
+*.zip
+*.log
+tmp_*.txt
+.serena/
+mcdr_test/
+run/
+
+# Local MCP context docs (do not push)
+docs/

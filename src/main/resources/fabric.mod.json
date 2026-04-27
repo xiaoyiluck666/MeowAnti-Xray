@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "meowantixray",
+  "version": "${version}",
+  "name": "Meow Anti-Xray",
+  "description": "Paper-like anti-xray protection for dedicated Minecraft servers.",
+  "authors": [
+    "xiaoyiluck"
+  ],
+  "contact": {
+    "homepage": "https://github.com/xiaoyiluck666/MeowAnti-Xray",
+    "sources": "https://github.com/xiaoyiluck666/MeowAnti-Xray",
+    "issues": "https://github.com/xiaoyiluck666/MeowAnti-Xray/issues"
+  },
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "com.meowconsole.fabric.MeowConsoleFabricMod"
+    ]
+  },
+  "mixins": [
+    "meowantixray.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": ">=26.1 <=26.1.2",
+    "java": ">=25",
+    "fabric-api": ">=0.144.0+26.1"
+  }
+}

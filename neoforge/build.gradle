@@ -1,0 +1,100 @@
+plugins {
+    id "net.neoforged.moddev" version "${moddev_gradle_version}"
+}
+
+def neoforgeBuildSuffix = (project.findProperty("neoforge_build_suffix") ?: "").toString()
+version = "${rootProject.version}${neoforgeBuildSuffix}"
+group = rootProject.group
+
+base {
+    archivesName = "${archives_base_name}-neoforge"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["../src/main/java", "src/main/java"]
+        }
+        resources {
+            srcDirs = ["../src/main/resources", "src/main/resources"]
+            exclude "fabric.mod.json"
+        }
+    }
+    test {
+        java {
+            srcDirs = ["../src/test/java"]
+        }
+    }
+}
+
+repositories {
+    maven {
+        name = "NeoForged"
+        url = "https://maven.neoforged.net/releases"
+    }
+    mavenCentral()
+}
+
+neoForge {
+    version = project.neoforge_version
+    validateAccessTransformers = true
+
+    runs {
+        server {
+            server()
+        }
+    }
+
+    mods {
+        meowantixray {
+            sourceSet sourceSets.main
+        }
+    }
+
+    unitTest {
+        enable()
+        testedMod = mods.meowantixray
+    }
+}
+
+dependencies {
+    testImplementation platform("org.junit:junit-bom:5.12.2")
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+processResources {
+    def props = [
+        version                 : project.version,
+        mod_id                  : project.archives_base_name,
+        mod_name                : "Meow Anti-Xray",
+        minecraft_version_range : project.neoforge_minecraft_version_range,
+        neoforge_version_range  : project.neoforge_version_range,
+        neoforge_version        : project.neoforge_version,
+        java_version_range      : project.neoforge_java_version_range
+    ]
+    inputs.properties(props)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand(props)
+    }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(project.neoforge_java_version as int)
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = project.neoforge_java_version as int
+    options.encoding = "UTF-8"
+}
+
+tasks.withType(Test).configureEach {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(project.neoforge_java_version as int)
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

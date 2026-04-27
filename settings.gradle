@@ -1,0 +1,25 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = "Aliyun Gradle Plugin"
+            url = "https://maven.aliyun.com/repository/gradle-plugin/"
+        }
+        maven {
+            name = "Aliyun Maven Public"
+            url = "https://maven.aliyun.com/repository/public/"
+        }
+        maven {
+            name = "Fabric"
+            url = "https://maven.fabricmc.net/"
+        }
+        maven {
+            name = "NeoForged"
+            url = "https://maven.neoforged.net/releases"
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = "MeowAnti-Xray"
+include("neoforge")

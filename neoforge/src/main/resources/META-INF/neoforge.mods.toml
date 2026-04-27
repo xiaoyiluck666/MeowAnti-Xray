@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mixins]]
+config = "meowantixray.neoforge.mixins.json"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${version}"
+displayName = "${mod_name}"
+displayTest = "IGNORE_SERVER_VERSION"
+authors = "xiaoyiluck"
+description = '''
+Paper-like anti-xray protection for dedicated Minecraft servers.
+'''
+
+[[dependencies.${mod_id}]]
+modId = "neoforge"
+type = "required"
+versionRange = "${neoforge_version_range}"
+ordering = "NONE"
+side = "SERVER"
+
+[[dependencies.${mod_id}]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "SERVER"
+
+[features.${mod_id}]
+javaVersion = "${java_version_range}"
