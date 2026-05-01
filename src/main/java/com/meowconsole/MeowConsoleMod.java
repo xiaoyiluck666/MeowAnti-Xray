@@ -4,6 +4,7 @@ import com.meowconsole.antixray.FakeOreService;
 import com.meowconsole.compat.MinecraftCompat;
 import com.meowconsole.platform.ModPlatform;
 import com.meowconsole.platform.PlatformHelper;
+import com.meowconsole.update.ModrinthUpdateChecker;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
@@ -47,10 +48,12 @@ public final class MeowConsoleMod {
         LOGGER.info("Meow Anti-Xray config source: {}", FAKE_ORE.configLoadSummary());
         LOGGER.info("Meow Anti-Xray enabled: {}", FAKE_ORE.describeConfig());
         LOGGER.info("Meow Anti-Xray startup complete. Author: {}", AUTHOR);
+        ModrinthUpdateChecker.checkAsync();
     }
 
     public static void onServerStopping(MinecraftServer server) {
         FAKE_ORE.shutdownAsyncExecutor();
+        ModrinthUpdateChecker.shutdown();
         CURRENT_SERVER = null;
     }
 

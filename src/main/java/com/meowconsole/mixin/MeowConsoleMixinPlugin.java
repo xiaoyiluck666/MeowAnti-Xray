@@ -1,14 +1,20 @@
 package com.meowconsole.mixin;
 
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 public final class MeowConsoleMixinPlugin implements IMixinConfigPlugin {
-    private static final boolean LEGACY_SERVER_EXPLOSION = !classExists("net.minecraft.world.level.ServerExplosion");
+    private static final boolean SERVER_EXPLOSION = classExists("net.minecraft.world.level.ServerExplosion")
+        || isInterface("net.minecraft.world.level.Explosion");
 
     @Override
     public void onLoad(String mixinPackage) {
@@ -21,12 +27,6 @@ public final class MeowConsoleMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        if (mixinClassName.endsWith("ServerExplosionMixin")) {
-            return !LEGACY_SERVER_EXPLOSION;
-        }
-        if (mixinClassName.endsWith("LegacyServerExplosionMixin")) {
-            return LEGACY_SERVER_EXPLOSION;
-        }
         if (mixinClassName.endsWith("PlayerChunkSenderMixin")) {
             return hasMethod("net.minecraft.server.network.PlayerChunkSender", "sendChunk");
         }
@@ -42,7 +42,9 @@ public final class MeowConsoleMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public List<String> getMixins() {
-        return null;
+        List<String> mixins = new ArrayList<>();
+        mixins.add(SERVER_EXPLOSION ? "ServerExplosionMixin" : "LegacyServerExplosionMixin");
+        return mixins;
     }
 
     @Override
@@ -54,26 +56,47 @@ public final class MeowConsoleMixinPlugin implements IMixinConfigPlugin {
     }
 
     private static boolean classExists(String className) {
-        try {
-            Class.forName(className, false, MeowConsoleMixinPlugin.class.getClassLoader());
-            return true;
-        } catch (ClassNotFoundException ignored) {
-            return false;
-        }
+        return classResource(className) != null;
     }
 
     private static boolean hasMethod(String className, String methodName) {
-        try {
-            Class<?> type = Class.forName(className, false, MeowConsoleMixinPlugin.class.getClassLoader());
-            for (var method : type.getDeclaredMethods()) {
-                if (method.getName().equals(methodName)) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (ClassNotFoundException ignored) {
+        ClassNode node = readClassNode(className);
+        if (node == null) {
             return false;
         }
+        for (var method : node.methods) {
+            if (method.name.equals(methodName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isInterface(String className) {
+        ClassNode node = readClassNode(className);
+        return node != null && (node.access & Opcodes.ACC_INTERFACE) != 0;
+    }
+
+    private static ClassNode readClassNode(String className) {
+        String resourceName = classResource(className);
+        if (resourceName == null) {
+            return null;
+        }
+        try (InputStream stream = MeowConsoleMixinPlugin.class.getClassLoader().getResourceAsStream(resourceName)) {
+            if (stream == null) {
+                return null;
+            }
+            ClassNode node = new ClassNode();
+            new ClassReader(stream).accept(node, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+            return node;
+        } catch (IOException ignored) {
+            return null;
+        }
+    }
+
+    private static String classResource(String className) {
+        String resourceName = className.replace('.', '/') + ".class";
+        return MeowConsoleMixinPlugin.class.getClassLoader().getResource(resourceName) == null ? null : resourceName;
     }
 
 }

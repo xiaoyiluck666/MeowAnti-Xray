@@ -18,6 +18,7 @@ Thumbs.db
 *.zip
 *.log
 tmp_*.txt
+tmp-neoforge-installer-test/
 .serena/
 mcdr_test/
 run/

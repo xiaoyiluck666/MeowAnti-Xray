@@ -306,23 +306,17 @@ public final class MinecraftCompat {
         BossEvent.BossBarColor color,
         BossEvent.BossBarOverlay overlay
     ) {
-        ServerBossEvent bossBar = instantiateDirect(
-            ServerBossEvent.class,
-            new Class<?>[]{UUID.class, Component.class, BossEvent.BossBarColor.class, BossEvent.BossBarOverlay.class},
-            new Object[]{id, name, color, overlay}
-        );
-        if (bossBar != null) {
-            return bossBar;
-        }
-        bossBar = instantiateDirect(
-            ServerBossEvent.class,
-            new Class<?>[]{Component.class, BossEvent.BossBarColor.class, BossEvent.BossBarOverlay.class},
-            new Object[]{name, color, overlay}
-        );
-        if (bossBar != null) {
-            return bossBar;
-        }
-        throw new IllegalStateException("Unsupported ServerBossEvent constructor");
+        return instantiateDirect(
+                ServerBossEvent.class,
+                new Class<?>[]{UUID.class, Component.class, BossEvent.BossBarColor.class, BossEvent.BossBarOverlay.class},
+                new Object[]{id, name, color, overlay}
+            )
+            .or(() -> instantiateDirect(
+                ServerBossEvent.class,
+                new Class<?>[]{Component.class, BossEvent.BossBarColor.class, BossEvent.BossBarOverlay.class},
+                new Object[]{name, color, overlay}
+            ))
+            .orElseThrow(() -> new IllegalStateException("Unsupported ServerBossEvent constructor"));
     }
 
     private static MobEffectInstance getEffect(ServerPlayer player, String primaryField, String fallbackField) {
@@ -568,7 +562,7 @@ public final class MinecraftCompat {
         Class<?>[] parameterTypes,
         Object[] args,
         Class<?> expectedType,
-        java.util.function.Supplier<Object> fallback
+        java.util.function.Supplier<Optional<?>> fallback
     ) {
         try {
             Class<?> nested = Class.forName(className);
@@ -580,16 +574,17 @@ public final class MinecraftCompat {
             }
         } catch (ReflectiveOperationException ignored) {
         }
-        return fallback.get();
+        return fallback.get()
+            .orElseThrow(() -> new IllegalStateException("Unsupported " + expectedType.getName() + " constructor"));
     }
 
-    private static <T> T instantiateDirect(Class<T> type, Class<?>[] parameterTypes, Object[] args) {
+    private static <T> Optional<T> instantiateDirect(Class<T> type, Class<?>[] parameterTypes, Object[] args) {
         try {
             Constructor<T> constructor = type.getDeclaredConstructor(parameterTypes);
             constructor.setAccessible(true);
-            return constructor.newInstance(args);
+            return Optional.of(constructor.newInstance(args));
         } catch (ReflectiveOperationException ignored) {
-            return null;
+            return Optional.empty();
         }
     }
 

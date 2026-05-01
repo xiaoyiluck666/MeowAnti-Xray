@@ -2185,9 +2185,9 @@ public final class FakeOreService {
         return remapDensePaletteIndices(source.states(), targetPaletteEntries);
     }
 
-    static int[] remapDensePaletteIndices(BlockState[] states, List<BlockState> targetPaletteEntries) {
+    static int[] remapDensePaletteIndices(BlockState[] states, List<? extends BlockState> targetPaletteEntries) {
         BlockState[] safeStates = Objects.requireNonNull(states, "states");
-        List<BlockState> safeTargetPaletteEntries = Objects.requireNonNull(targetPaletteEntries, "targetPaletteEntries");
+        List<? extends BlockState> safeTargetPaletteEntries = Objects.requireNonNull(targetPaletteEntries, "targetPaletteEntries");
         int[] remapped = new int[safeStates.length];
         for (int i = 0; i < safeStates.length; i++) {
             remapped[i] = indexOfState(safeTargetPaletteEntries, Objects.requireNonNull(safeStates[i], "states[" + i + "]"));
@@ -2202,7 +2202,7 @@ public final class FakeOreService {
         return indexOfState(targetPaletteEntries, state);
     }
 
-    private static int indexOfState(List<BlockState> states, BlockState target) {
+    private static int indexOfState(List<? extends BlockState> states, BlockState target) {
         for (int i = 0; i < states.size(); i++) {
             if (states.get(i) == target) {
                 return i;

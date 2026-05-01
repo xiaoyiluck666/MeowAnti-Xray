@@ -1,11 +1,14 @@
 package com.meowconsole;
 
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.CommandDispatcher;
 import com.meowconsole.compat.MinecraftCompat;
+import com.meowconsole.update.ModrinthUpdateChecker;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -27,12 +30,7 @@ public final class MeowServerCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> buildAntiXrayCommand(String name) {
         String commandName = Objects.requireNonNull(name, "commandName");
-        LiteralArgumentBuilder<CommandSourceStack> debugCommand = Commands.literal("debug")
-            .then(Commands.argument("world", StringArgumentType.word())
-                .then(Commands.argument("x", IntegerArgumentType.integer())
-                    .then(Commands.argument("y", IntegerArgumentType.integer())
-                        .then(Commands.argument("z", IntegerArgumentType.integer())
-                            .executes(MeowServerCommands::debugAntiXrayBlock)))));
+        LiteralArgumentBuilder<CommandSourceStack> debugCommand = debugCommand();
 
         return Commands.literal(commandName)
             .requires(MeowServerCommands::hasAdminPermission)
@@ -46,6 +44,24 @@ public final class MeowServerCommands {
             .then(debugCommand);
     }
 
+    private static LiteralArgumentBuilder<CommandSourceStack> debugCommand() {
+        RequiredArgumentBuilder<CommandSourceStack, Integer> zArgument = commandArgument("z", IntegerArgumentType.integer())
+            .executes(MeowServerCommands::debugAntiXrayBlock);
+        RequiredArgumentBuilder<CommandSourceStack, Integer> yArgument = commandArgument("y", IntegerArgumentType.integer())
+            .then(zArgument);
+        RequiredArgumentBuilder<CommandSourceStack, Integer> xArgument = commandArgument("x", IntegerArgumentType.integer())
+            .then(yArgument);
+        RequiredArgumentBuilder<CommandSourceStack, String> worldArgument = commandArgument("world", StringArgumentType.word())
+            .then(xArgument);
+        return Objects.requireNonNull(Commands.literal("debug"), "debug command").then(worldArgument);
+    }
+
+    private static <T> RequiredArgumentBuilder<CommandSourceStack, T> commandArgument(String name, ArgumentType<T> type) {
+        String argumentName = Objects.requireNonNull(name, "argumentName");
+        ArgumentType<T> argumentType = Objects.requireNonNull(type, "argumentType");
+        return Objects.requireNonNull(Commands.argument(argumentName, argumentType), argumentName + " argument");
+    }
+
     private static boolean hasAdminPermission(CommandSourceStack source) {
         return MinecraftCompat.hasCommandPermission(source, 4);
     }
@@ -57,6 +73,11 @@ public final class MeowServerCommands {
         );
         source.sendSuccess(
             () -> Component.literal("[Anti-Xray] " + MeowConsoleMod.fakeOre().describeConfig()),
+            false
+        );
+        String updateStatus = Objects.requireNonNull(ModrinthUpdateChecker.statusSummary(), "update status");
+        source.sendSuccess(
+            () -> Component.literal(updateStatus),
             false
         );
         return 1;

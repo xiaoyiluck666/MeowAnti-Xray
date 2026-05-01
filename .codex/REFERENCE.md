@@ -8,7 +8,10 @@
 - 跨版本兼容层：`src/main/java/com/meowconsole/compat/MinecraftCompat.java`。
 - Fabric mixin 清单：`src/main/resources/meowantixray.mixins.json`。
 - NeoForge mixin 清单：`neoforge/src/main/resources/meowantixray.neoforge.mixins.json`。
-- 线程边界：本项目线程只处理反矿透功能；不要把 Meow Console 的控制台、睡觉、玩家消息、飞行保护、Velocity、MCDR、更新检查记忆写入本项目。
+- Modrinth 更新检测：`src/main/java/com/meowconsole/update/ModrinthUpdateChecker.java`，项目 slug `meowanti-xray`，公开页 `https://modrinth.com/mod/meowanti-xray`。
+- 拆分来源项目：MeowConsole，Modrinth 公开页 `https://modrinth.com/mod/meowconsole`。
+- 当前目标：Minecraft `26.1.2`，Java `25`；NeoForge 目标版本 `26.1.2.30-beta`。
+- 线程边界：本项目线程只处理反矿透功能；不要把 Meow Console 的控制台、睡觉、玩家消息、飞行保护、Velocity、MCDR 等非反矿透记忆写入本项目。
 - 源项目边界：`E:\Code2026\fabricmod\meowconsole` 继续维护 `Meow Console`。
 
 ## Commands

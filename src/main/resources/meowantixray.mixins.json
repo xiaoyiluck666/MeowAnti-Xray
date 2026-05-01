@@ -2,13 +2,11 @@
   "required": true,
   "package": "com.meowconsole.mixin",
   "plugin": "com.meowconsole.mixin.MeowConsoleMixinPlugin",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "mixins": [
     "ClientboundLevelChunkPacketDataAccessor",
-    "LegacyServerExplosionMixin",
     "PlayerChunkSenderMixin",
     "ServerLevelBlockUpdateMixin",
-    "ServerExplosionMixin",
     "ServerPlayerGameModeMixin"
   ],
   "injectors": {
