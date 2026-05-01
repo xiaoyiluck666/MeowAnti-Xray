@@ -8,6 +8,7 @@
 - 跨版本兼容层：`src/main/java/com/meowconsole/compat/MinecraftCompat.java`。
 - Fabric mixin 清单：`src/main/resources/meowantixray.mixins.json`。
 - NeoForge mixin 清单：`neoforge/src/main/resources/meowantixray.neoforge.mixins.json`。
+- GitHub 私有仓库：`https://github.com/xiaoyiluck666/MeowAnti-Xray`，本地 `origin` 指向 `https://github.com/xiaoyiluck666/MeowAnti-Xray.git`。
 - Modrinth 更新检测：`src/main/java/com/meowconsole/update/ModrinthUpdateChecker.java`，项目 slug `meowanti-xray`，公开页 `https://modrinth.com/mod/meowanti-xray`。
 - 拆分来源项目：MeowConsole，Modrinth 公开页 `https://modrinth.com/mod/meowconsole`。
 - 当前目标：Minecraft `26.1.2`，Java `25`；NeoForge 目标版本 `26.1.2.30-beta`。
