@@ -3,6 +3,7 @@ package com.meowconsole.antixray;
 import com.meowconsole.MeowConsoleMod;
 import com.meowconsole.compat.MinecraftCompat;
 import com.meowconsole.mixin.ClientboundLevelChunkPacketDataAccessor;
+import com.meowconsole.platform.PlatformHelper;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -45,11 +46,15 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.IntFunction;
@@ -89,6 +94,13 @@ public final class FakeOreService {
     private long profileLastRevealNanos = 0L;
     private volatile ExecutorService chunkRewriteExecutor;
     private volatile int chunkRewriteExecutorThreads;
+    private volatile int chunkRewriteExecutorQueueSize = -1;
+    private volatile Semaphore chunkRewritePermits;
+    private volatile int chunkRewritePermitLimit = -1;
+
+    private int asyncRewriteCapacity() {
+        return Math.max(1, config.asyncWorkerThreads) + Math.max(0, config.asyncQueueSize);
+    }
     private static final int[][] PAPER_NEIGHBOR_OFFSETS_RADIUS_1 = {
         {-1, 0, 0},
         {1, 0, 0},
@@ -142,6 +154,7 @@ public final class FakeOreService {
             config.guaranteeHideAllHiddenBlocks,
             config.lavaObscures,
             config.usePermission,
+            config.bypassPermission,
             config.updateRadius,
             config.updateIntervalTicks,
             config.maxBlocksPerChunk,
@@ -162,6 +175,7 @@ public final class FakeOreService {
                 ds.guaranteeHideAllHiddenBlocks,
                 ds.lavaObscures,
                 ds.usePermission,
+                ds.bypassPermission,
                 config.updateRadius,
                 config.updateIntervalTicks,
                 config.maxBlocksPerChunk,
@@ -176,12 +190,16 @@ public final class FakeOreService {
         maskedByPlayer.remove(player.getUUID());
     }
 
-    static boolean shouldBypassWithPermission(boolean usePermission, boolean adminLike) {
-        return usePermission && adminLike;
+    static boolean shouldBypassWithPermission(boolean usePermission, boolean platformPermission, boolean adminLike) {
+        return usePermission && (platformPermission || adminLike);
     }
 
     private boolean shouldBypassForPlayer(ServerPlayer player, Palette palette) {
-        return shouldBypassWithPermission(palette.usePermission, MeowConsoleMod.isAdminLikePlayer(player));
+        return shouldBypassWithPermission(
+            palette.usePermission,
+            PlatformHelper.hasPermission(player, palette.bypassPermission),
+            MeowConsoleMod.isAdminLikePlayer(player)
+        );
     }
 
     public void sendChunkPacket(ServerGamePacketListenerImpl connection, ServerLevel level, LevelChunk chunk) {
@@ -200,10 +218,21 @@ public final class FakeOreService {
             fallbackSyncChunkSend(sendContext);
             return;
         }
+        if (!tryAcquireAsyncRewritePermit()) {
+            fallbackSyncChunkSend(sendContext);
+            return;
+        }
 
-        ChunkRewriteController controller = createChunkRewriteController(sendContext);
+        ChunkRewriteController controller;
+        try {
+            controller = createChunkRewriteController(sendContext);
+        } catch (RuntimeException ex) {
+            releaseAsyncRewritePermit();
+            throw ex;
+        }
         if (!submitAsyncChunkRewrite(controller)) {
-            fallbackSyncChunkSend(controller.sendContext());
+            releaseAsyncRewritePermit();
+            fallbackSyncChunkSend(sendContext);
         }
     }
 
@@ -213,6 +242,9 @@ public final class FakeOreService {
             executor.shutdownNow();
             chunkRewriteExecutor = null;
             chunkRewriteExecutorThreads = 0;
+            chunkRewriteExecutorQueueSize = -1;
+            chunkRewritePermits = null;
+            chunkRewritePermitLimit = -1;
         }
     }
 
@@ -512,6 +544,7 @@ public final class FakeOreService {
             globalPalette.guaranteeHideAllHiddenBlocks,
             config.asyncChunkRewrite,
             config.asyncWorkerThreads,
+            config.asyncQueueSize,
             dimensionSummaries,
             globalPalette.hiddenBlockIds.size(),
             globalPalette.replacementBlockIds.size()
@@ -520,6 +553,72 @@ public final class FakeOreService {
 
     public boolean isEnabled() {
         return globalPalette != null && globalPalette.enabled;
+    }
+
+    public String stressChunkRewrite(ServerLevel level, int centerChunkX, int centerChunkZ, int radius, int passes) {
+        ServerLevel safeLevel = Objects.requireNonNull(level, "level");
+        Palette palette = paletteFor(safeLevel);
+        if (!palette.enabled || palette.hiddenBlockIds.isEmpty()) {
+            return "stress skipped: anti-xray disabled or no hidden blocks";
+        }
+
+        int safeRadius = Math.max(0, Math.min(16, radius));
+        int safePasses = Math.max(1, Math.min(20, passes));
+        int chunks = 0;
+        int changedChunks = 0;
+        int changedSections = 0;
+        int changedBlocks = 0;
+        long startNano = System.nanoTime();
+        for (int pass = 0; pass < safePasses; pass++) {
+            for (int chunkX = centerChunkX - safeRadius; chunkX <= centerChunkX + safeRadius; chunkX++) {
+                for (int chunkZ = centerChunkZ - safeRadius; chunkZ <= centerChunkZ + safeRadius; chunkZ++) {
+                    LevelChunk chunk = safeLevel.getChunk(chunkX, chunkZ);
+                    ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(chunk, safeLevel.getLightEngine(), null, null);
+                    ChunkPacketInfo packetInfo = createChunkPacketInfo(safeLevel, chunk, packet, palette);
+                    ChunkRewritePreparation preparation = new ChunkRewritePreparation(
+                        new UUID(0L, 0L),
+                        safeLevel.getSeed(),
+                        replacementProfile(safeLevel),
+                        palette,
+                        chunkX,
+                        chunkZ,
+                        packetInfo.minY(),
+                        packetInfo.baseX(),
+                        packetInfo.baseZ(),
+                        packetInfo.maxY(),
+                        packetInfo.originalBuffer().clone(),
+                        packetInfo.sourceSectionSizes().clone(),
+                        snapshotCenterSections(safeLevel, packetInfo),
+                        snapshotNeighborSections(safeLevel, packetInfo.westChunk()),
+                        snapshotNeighborSections(safeLevel, packetInfo.eastChunk()),
+                        snapshotNeighborSections(safeLevel, packetInfo.northChunk()),
+                        snapshotNeighborSections(safeLevel, packetInfo.southChunk())
+                    );
+                    AsyncChunkResult result = processAsyncChunkTask(preparation.toAsyncChunkTask());
+                    chunks++;
+                    if (result.changed()) {
+                        changedChunks++;
+                        changedSections += result.changedSections();
+                        changedBlocks += result.changedBlocks();
+                    }
+                }
+            }
+        }
+        long elapsedNano = System.nanoTime() - startNano;
+        double elapsedMs = elapsedNano / 1_000_000.0D;
+        double avgMs = chunks <= 0 ? 0.0D : elapsedMs / chunks;
+        return String.format(
+            java.util.Locale.ROOT,
+            "stress chunks=%d changedChunks=%d sections=%d blocks=%d elapsedMs=%.3f avgChunkMs=%.3f radius=%d passes=%d",
+            chunks,
+            changedChunks,
+            changedSections,
+            changedBlocks,
+            elapsedMs,
+            avgMs,
+            safeRadius,
+            safePasses
+        );
     }
 
     static boolean effectiveEnabled(boolean globalEnabled, boolean dimensionEnabled) {
@@ -785,7 +884,7 @@ public final class FakeOreService {
         return revealBySection.computeIfAbsent(sectionLong, ignored -> new ShortOpenHashSet()).add(rel);
     }
 
-    private List<BlockPos> paperNeighborUpdatePositions(BlockPos blockPos, int updateRadius) {
+    static List<BlockPos> paperNeighborUpdatePositions(BlockPos blockPos, int updateRadius) {
         List<BlockPos> candidates = new ArrayList<>(updateRadius >= 2 ? 24 : 6);
         int[][] offsets = updateRadius >= 2 ? PAPER_NEIGHBOR_OFFSETS_RADIUS_2 : PAPER_NEIGHBOR_OFFSETS_RADIUS_1;
         for (int[] offset : offsets) {
@@ -863,25 +962,73 @@ public final class FakeOreService {
     private ExecutorService ensureChunkRewriteExecutor() {
         ExecutorService current = chunkRewriteExecutor;
         int configuredThreads = Math.max(1, config.asyncWorkerThreads);
-        if (current != null && !current.isShutdown() && chunkRewriteExecutorThreads == configuredThreads) {
+        int configuredQueueSize = Math.max(0, config.asyncQueueSize);
+        if (
+            current != null
+                && !current.isShutdown()
+                && chunkRewriteExecutorThreads == configuredThreads
+                && chunkRewriteExecutorQueueSize == configuredQueueSize
+        ) {
             return current;
         }
         synchronized (this) {
             current = chunkRewriteExecutor;
-            if (current != null && !current.isShutdown() && chunkRewriteExecutorThreads != configuredThreads) {
+            if (
+                current != null
+                    && !current.isShutdown()
+                    && (chunkRewriteExecutorThreads != configuredThreads || chunkRewriteExecutorQueueSize != configuredQueueSize)
+            ) {
                 current.shutdownNow();
                 current = null;
                 chunkRewriteExecutor = null;
             }
             if (current == null || current.isShutdown()) {
-                chunkRewriteExecutor = Executors.newFixedThreadPool(configuredThreads, runnable -> {
-                    Thread thread = new Thread(runnable, "meowconsole-antixray-rewrite");
-                    thread.setDaemon(true);
-                    return thread;
-                });
+                chunkRewriteExecutor = new ThreadPoolExecutor(
+                    configuredThreads,
+                    configuredThreads,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    configuredQueueSize == 0 ? new SynchronousQueue<>() : new ArrayBlockingQueue<>(configuredQueueSize),
+                    runnable -> {
+                        Thread thread = new Thread(runnable, "meowconsole-antixray-rewrite");
+                        thread.setDaemon(true);
+                        return thread;
+                    },
+                    new ThreadPoolExecutor.AbortPolicy()
+                );
                 chunkRewriteExecutorThreads = configuredThreads;
+                chunkRewriteExecutorQueueSize = configuredQueueSize;
             }
             return chunkRewriteExecutor;
+        }
+    }
+
+    private boolean tryAcquireAsyncRewritePermit() {
+        Semaphore permits = ensureChunkRewritePermits();
+        return permits.tryAcquire();
+    }
+
+    private Semaphore ensureChunkRewritePermits() {
+        int configuredCapacity = asyncRewriteCapacity();
+        Semaphore current = chunkRewritePermits;
+        if (current != null && chunkRewritePermitLimit == configuredCapacity) {
+            return current;
+        }
+        synchronized (this) {
+            current = chunkRewritePermits;
+            if (current == null || chunkRewritePermitLimit != configuredCapacity) {
+                current = new Semaphore(configuredCapacity);
+                chunkRewritePermits = current;
+                chunkRewritePermitLimit = configuredCapacity;
+            }
+            return current;
+        }
+    }
+
+    private void releaseAsyncRewritePermit() {
+        Semaphore permits = chunkRewritePermits;
+        if (permits != null) {
+            permits.release();
         }
     }
 
@@ -1306,32 +1453,36 @@ public final class FakeOreService {
         AsyncChunkResult result,
         Throwable throwable
     ) {
-        ChunkSendContext sendContext = controller.sendContext();
-        ChunkRewritePreparation preparation = controller.preparation();
-        if (sendContext.connection().player.level() != sendContext.level()) {
-            return;
-        }
-        if (throwable != null || result == null) {
-            MeowConsoleMod.LOGGER.warn(
-                "Meow Anti-Xray async rewrite failed, fallback to sync chunk=({}, {})",
-                MinecraftCompat.chunkX(sendContext.chunk().getPos()),
-                MinecraftCompat.chunkZ(sendContext.chunk().getPos()),
-                throwable
-            );
-            fallbackSyncChunkSend(sendContext);
-            return;
-        }
+        try {
+            ChunkSendContext sendContext = controller.sendContext();
+            ChunkRewritePreparation preparation = controller.preparation();
+            if (sendContext.connection().player.level() != sendContext.level()) {
+                return;
+            }
+            if (throwable != null || result == null) {
+                MeowConsoleMod.LOGGER.warn(
+                    "Meow Anti-Xray async rewrite failed, fallback to sync chunk=({}, {})",
+                    MinecraftCompat.chunkX(sendContext.chunk().getPos()),
+                    MinecraftCompat.chunkZ(sendContext.chunk().getPos()),
+                    throwable
+                );
+                fallbackSyncChunkSend(sendContext);
+                return;
+            }
 
-        PlayerMask playerMask = preparation.resolvePlayerMask(maskedByPlayer);
-        preparation.applyAsyncResult(playerMask, result);
+            PlayerMask playerMask = preparation.resolvePlayerMask(maskedByPlayer);
+            preparation.applyAsyncResult(playerMask, result);
 
-        if (result.changed()) {
-            statObfuscatedChunks.increment();
-            statObfuscatedSections.add(result.changedSections());
-            statObfuscatedBlocks.add(result.changedBlocks());
-            ((ClientboundLevelChunkPacketDataAccessor) sendContext.packet().getChunkData()).meowconsole$setBuffer(result.rewrittenBuffer());
+            if (result.changed()) {
+                statObfuscatedChunks.increment();
+                statObfuscatedSections.add(result.changedSections());
+                statObfuscatedBlocks.add(result.changedBlocks());
+                ((ClientboundLevelChunkPacketDataAccessor) sendContext.packet().getChunkData()).meowconsole$setBuffer(result.rewrittenBuffer());
+            }
+            sendPacketAndTrack(sendContext);
+        } finally {
+            releaseAsyncRewritePermit();
         }
-        sendPacketAndTrack(sendContext);
     }
 
     private void applyRevealCandidatesToPlayer(
@@ -2591,6 +2742,7 @@ public final class FakeOreService {
         boolean guaranteeHideAllHiddenBlocks,
         boolean lavaObscures,
         boolean usePermission,
+        String bypassPermission,
         int updateRadius,
         int updateIntervalTicks,
         int maxBlocksPerChunk,
@@ -2624,7 +2776,9 @@ public final class FakeOreService {
 
         LinkedHashSet<BlockState> decoy = new LinkedHashSet<>();
         for (Block block : hiddenSet) {
-            decoy.add(block.defaultBlockState());
+            if (!isEntityBlock(block)) {
+                decoy.add(block.defaultBlockState());
+            }
         }
         if (decoy.isEmpty()) {
             decoy.addAll(replacementStates);
@@ -2646,6 +2800,7 @@ public final class FakeOreService {
             guaranteeHideAllHiddenBlocks,
             lavaObscures,
             usePermission,
+            normalizePermissionNode(bypassPermission),
             FakeOreConfig.normalizeUpdateRadius(updateRadius),
             Math.max(1, updateIntervalTicks),
             Math.max(64, maxBlocksPerChunk),
@@ -2662,6 +2817,30 @@ public final class FakeOreService {
         );
     }
 
+    static List<String> debugMode2DecoyBlockIdsForTest(List<String> hiddenIds, List<String> replacementIds) {
+        Palette palette = new FakeOreService().buildPalette(
+            true,
+            2,
+            64,
+            false,
+            true,
+            true,
+            false,
+            false,
+            "paper.antixray.bypass",
+            2,
+            10,
+            32768,
+            hiddenIds,
+            replacementIds
+        );
+        List<String> ids = new ArrayList<>();
+        for (BlockState state : palette.mode2DecoyStates) {
+            ids.add(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
+        }
+        return ids;
+    }
+
     private record Palette(
         boolean enabled,
         int engineMode,
@@ -2671,6 +2850,7 @@ public final class FakeOreService {
         boolean guaranteeHideAllHiddenBlocks,
         boolean lavaObscures,
         boolean usePermission,
+        String bypassPermission,
         int updateRadius,
         int updateIntervalTicks,
         int maxBlocksPerChunk,
@@ -2687,6 +2867,15 @@ public final class FakeOreService {
     ) {
     }
 
+    private static boolean isEntityBlock(Block block) {
+        return block instanceof net.minecraft.world.level.block.EntityBlock;
+    }
+
+    private static String normalizePermissionNode(String permissionNode) {
+        String normalized = permissionNode == null ? "" : permissionNode.trim();
+        return normalized.isEmpty() ? "paper.antixray.bypass" : normalized;
+    }
+
     static String formatConfigSummary(
         int defaultMode,
         int defaultMaxHeight,
@@ -2694,6 +2883,7 @@ public final class FakeOreService {
         boolean guaranteeHideAllHiddenBlocks,
         boolean asyncChunkRewrite,
         int asyncWorkerThreads,
+        int asyncQueueSize,
         Map<String, DimensionSummary> dimensionSummaries,
         int globalHiddenCount,
         int globalReplacementCount
@@ -2713,6 +2903,7 @@ public final class FakeOreService {
             + ", guarantee-hide-all-hidden-blocks=" + guaranteeHideAllHiddenBlocks
             + ", async-chunk-rewrite=" + asyncChunkRewrite
             + ", async-worker-threads=" + asyncWorkerThreads
+            + ", async-queue-size=" + asyncQueueSize
             + ", dimensions=" + dimensionJoiner
             + ", global-hidden=" + globalHiddenCount
             + ", global-replacement=" + globalReplacementCount;

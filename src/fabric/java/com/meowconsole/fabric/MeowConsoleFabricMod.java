@@ -19,6 +19,7 @@ public final class MeowConsoleFabricMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(MeowConsoleMod::onServerStarted);
         ServerLifecycleEvents.SERVER_STOPPING.register(MeowConsoleMod::onServerStopping);
         ServerTickEvents.END_SERVER_TICK.register(MeowConsoleMod::onServerTick);
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> MeowConsoleMod.onPlayerJoin(handler.player));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> MeowConsoleMod.onPlayerDisconnect(handler.player));
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!world.isClientSide() && player instanceof ServerPlayer serverPlayer && world instanceof ServerLevel serverLevel) {

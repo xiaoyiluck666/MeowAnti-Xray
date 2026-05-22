@@ -39,6 +39,7 @@ dependencies {
 
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly "org.eclipse.jdt:org.eclipse.jdt.annotation:${project.jdt_annotation_version}"
 
     testImplementation platform("org.junit:junit-bom:5.12.2")
     testImplementation "org.junit.jupiter:junit-jupiter"
@@ -77,4 +78,17 @@ tasks.register("buildAllLoaders") {
     description = "Builds both Fabric and NeoForge artifacts."
     dependsOn(tasks.named("build"))
     dependsOn(":neoforge:build")
+}
+
+tasks.register("releaseAllLoaders", Copy) {
+    group = "build"
+    description = "Builds Fabric and NeoForge artifacts, then copies release jars into build/release."
+    dependsOn(tasks.named("buildAllLoaders"))
+    from(layout.buildDirectory.dir("libs")) {
+        include("${project.archives_base_name}-fabric-${project.version}.jar")
+    }
+    from(project(":neoforge").layout.buildDirectory.dir("libs")) {
+        include("${project.archives_base_name}-neoforge-${project.version}.jar")
+    }
+    into(layout.buildDirectory.dir("release"))
 }

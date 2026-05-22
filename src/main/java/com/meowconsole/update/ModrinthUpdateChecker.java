@@ -8,6 +8,12 @@ import com.meowconsole.MeowConsoleMod;
 import com.meowconsole.compat.MinecraftCompat;
 import com.meowconsole.platform.LoaderType;
 import com.meowconsole.platform.PlatformHelper;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.level.ServerPlayer;
+import org.eclipse.jdt.annotation.NonNull;
 
 import java.io.IOException;
 import java.net.URI;
@@ -22,6 +28,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -31,10 +38,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public final class ModrinthUpdateChecker {
     public static final String PROJECT_SLUG = "meowanti-xray";
-    public static final String PROJECT_URL = "https://modrinth.com/mod/" + PROJECT_SLUG;
+    public static final String PROJECT_URL = "https://modrinth.com/project/" + PROJECT_SLUG;
 
     private static final String MOD_ID = "meowantixray";
     private static final String API_URL = "https://api.modrinth.com/v2/project/" + PROJECT_SLUG + "/version";
+    private static final String DOWNLOAD_HOVER_TEXT = "Open Meow Anti-Xray on Modrinth";
+    private static final int MAX_CHANGE_LINES = 3;
+    private static final int MAX_CHANGE_LINE_LENGTH = 120;
     private static final AtomicReference<UpdateStatus> STATUS = new AtomicReference<>(UpdateStatus.notChecked());
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(new UpdateThreadFactory());
     private static volatile CompletableFuture<Void> activeCheck;
@@ -56,6 +66,7 @@ public final class ModrinthUpdateChecker {
             .thenAccept(status -> {
                 STATUS.set(status);
                 logStatus(status);
+                notifyOnlineAdmins(status);
             })
             .exceptionally(exception -> {
                 UpdateStatus status = UpdateStatus.unavailable(
@@ -66,12 +77,26 @@ public final class ModrinthUpdateChecker {
                 );
                 STATUS.set(status);
                 logStatus(status);
+                notifyOnlineAdmins(status);
                 return null;
             });
     }
 
     public static String statusSummary() {
         return STATUS.get().summary();
+    }
+
+    public static void notifyAdminIfUpdateAvailable(ServerPlayer player) {
+        Objects.requireNonNull(player, "player");
+        UpdateStatus status = STATUS.get();
+        if (status.state() == State.AVAILABLE && MeowConsoleMod.isAdminLikePlayer(player)) {
+            status.sendAdminMessages(player);
+        }
+    }
+
+    public static void sendStatusTo(ServerPlayer player) {
+        Objects.requireNonNull(player, "player");
+        STATUS.get().sendStatusMessages(player);
     }
 
     public static void shutdown() {
@@ -174,13 +199,93 @@ public final class ModrinthUpdateChecker {
         }
         String name = stringMember(object, "name");
         String versionType = stringMember(object, "version_type");
+        String changelog = stringMember(object, "changelog");
         String url = stringMember(object, "url");
         if (url == null || url.isBlank()) {
             String id = stringMember(object, "id");
-            url = id == null || id.isBlank() ? PROJECT_URL : "https://modrinth.com/mod/" + PROJECT_SLUG + "/version/" + id;
+            url = id == null || id.isBlank() ? PROJECT_URL : PROJECT_URL + "/version/" + id;
         }
+        String downloadUrl = primaryDownloadUrl(object).orElse(url);
         OffsetDateTime publishedAt = parseDate(stringMember(object, "date_published"));
-        return new RemoteVersion(versionNumber, name == null ? versionNumber : name, versionType == null ? "release" : versionType, url, publishedAt);
+        return new RemoteVersion(
+            versionNumber,
+            name == null ? versionNumber : name,
+            versionType == null ? "release" : versionType,
+            url,
+            downloadUrl,
+            releaseNotes(changelog),
+            publishedAt
+        );
+    }
+
+    private static Optional<String> primaryDownloadUrl(JsonObject object) {
+        JsonElement filesElement = object.get("files");
+        if (filesElement == null || !filesElement.isJsonArray()) {
+            return Optional.empty();
+        }
+
+        String firstUrl = null;
+        for (JsonElement fileElement : filesElement.getAsJsonArray()) {
+            if (!fileElement.isJsonObject()) {
+                continue;
+            }
+            JsonObject file = fileElement.getAsJsonObject();
+            String url = stringMember(file, "url");
+            if (url == null || url.isBlank()) {
+                continue;
+            }
+            if (firstUrl == null) {
+                firstUrl = url;
+            }
+            JsonElement primaryElement = file.get("primary");
+            if (primaryElement != null && !primaryElement.isJsonNull() && primaryElement.getAsBoolean()) {
+                return Optional.of(url);
+            }
+        }
+        return Optional.ofNullable(firstUrl);
+    }
+
+    private static List<String> releaseNotes(String changelog) {
+        if (changelog == null || changelog.isBlank()) {
+            return List.of("See the Modrinth release page for details.");
+        }
+
+        List<String> notes = new ArrayList<>();
+        for (String rawLine : changelog.replace("\r\n", "\n").replace('\r', '\n').split("\n")) {
+            String line = cleanMarkdownLine(rawLine);
+            if (line.isBlank()) {
+                continue;
+            }
+            notes.add(truncate(line, MAX_CHANGE_LINE_LENGTH));
+            if (notes.size() >= MAX_CHANGE_LINES) {
+                break;
+            }
+        }
+        return notes.isEmpty() ? List.of("See the Modrinth release page for details.") : List.copyOf(notes);
+    }
+
+    private static String cleanMarkdownLine(String rawLine) {
+        String line = rawLine.strip();
+        while (line.startsWith("#") || line.startsWith("-") || line.startsWith("*") || line.startsWith(">")) {
+            line = line.substring(1).strip();
+        }
+        if (line.startsWith("[")) {
+            int close = line.indexOf(']');
+            if (close >= 0 && close + 1 < line.length() && line.charAt(close + 1) == '(') {
+                int end = line.indexOf(')', close + 2);
+                if (end > close) {
+                    line = line.substring(1, close) + line.substring(end + 1);
+                }
+            }
+        }
+        return line.replace("`", "").strip();
+    }
+
+    private static String truncate(String value, int maxLength) {
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, Math.max(0, maxLength - 3)).stripTrailing() + "...";
     }
 
     private static String stringMember(JsonObject object, String key) {
@@ -200,8 +305,8 @@ public final class ModrinthUpdateChecker {
     }
 
     static int compareVersions(String left, String right) {
-        List<VersionPart> leftParts = versionParts(left);
-        List<VersionPart> rightParts = versionParts(right);
+        List<VersionPart> leftParts = versionParts(normalizeVersion(left));
+        List<VersionPart> rightParts = versionParts(normalizeVersion(right));
         int length = Math.max(leftParts.size(), rightParts.size());
         for (int i = 0; i < length; i++) {
             VersionPart leftPart = i < leftParts.size() ? leftParts.get(i) : VersionPart.ZERO;
@@ -212,6 +317,14 @@ public final class ModrinthUpdateChecker {
             }
         }
         return 0;
+    }
+
+    private static String normalizeVersion(String version) {
+        if (version == null) {
+            return "";
+        }
+        int buildIndex = version.indexOf('+');
+        return buildIndex >= 0 ? version.substring(0, buildIndex) : version;
     }
 
     private static List<VersionPart> versionParts(String version) {
@@ -239,6 +352,51 @@ public final class ModrinthUpdateChecker {
         }
     }
 
+    private static void notifyOnlineAdmins(UpdateStatus status) {
+        if (status.state() != State.AVAILABLE) {
+            return;
+        }
+        DedicatedServer server = MeowConsoleMod.currentServer();
+        if (server == null || !server.isRunning()) {
+            return;
+        }
+        server.executeIfPossible(() -> {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                notifyAdminIfUpdateAvailable(player);
+            }
+        });
+    }
+
+    private static Component link(String text, String url) {
+        String linkText = requireText(text, "text");
+        String linkUrl = requireText(url, "url");
+        URI uri;
+        try {
+            uri = URI.create(linkUrl);
+        } catch (IllegalArgumentException exception) {
+            return literal(linkText + ": " + linkUrl).withStyle(ChatFormatting.YELLOW);
+        }
+        return literal(linkText)
+            .withStyle(style -> style
+                .withColor(ChatFormatting.AQUA)
+                .withUnderlined(Boolean.TRUE)
+                .withClickEvent(MinecraftCompat.openUrlClickEvent(uri))
+                .withHoverEvent(MinecraftCompat.showTextHoverEvent(literal(DOWNLOAD_HOVER_TEXT))));
+    }
+
+    private static void sendSystemMessage(ServerPlayer player, Component message) {
+        player.sendSystemMessage(Objects.requireNonNull(message, "message"));
+    }
+
+    private static @NonNull String requireText(String value, String name) {
+        return Objects.requireNonNull(value, name);
+    }
+
+    private static MutableComponent literal(String text) {
+        String safeText = requireText(text, "text");
+        return Objects.requireNonNull(Component.literal(safeText), "literal");
+    }
+
     private enum State {
         NOT_CHECKED,
         CHECKING,
@@ -252,6 +410,8 @@ public final class ModrinthUpdateChecker {
         String name,
         String versionType,
         String url,
+        String downloadUrl,
+        List<String> releaseNotes,
         OffsetDateTime publishedAt
     ) {
         boolean isNewerThan(RemoteVersion other) {
@@ -296,12 +456,40 @@ public final class ModrinthUpdateChecker {
                 case NOT_CHECKED -> "[Anti-Xray] update check has not run yet.";
                 case CHECKING -> "[Anti-Xray] checking Modrinth updates for " + currentVersion + " (" + loader + ", MC " + minecraftVersion + ")...";
                 case AVAILABLE -> "[Anti-Xray] update available: " + currentVersion + " -> " + latest.versionNumber()
-                    + " (" + latest.versionType() + "). Download: " + latest.url();
+                    + " (" + latest.versionType() + "). Download: " + latest.downloadUrl();
                 case UP_TO_DATE -> "[Anti-Xray] update check: " + currentVersion + " is up to date for "
                     + loader + " / MC " + minecraftVersion + ".";
                 case UNAVAILABLE -> "[Anti-Xray] update check unavailable for " + loader + " / MC "
                     + minecraftVersion + ": " + reason + ".";
             };
+        }
+
+        void sendStatusMessages(ServerPlayer player) {
+            if (state != State.AVAILABLE) {
+                sendSystemMessage(player, literal(summary()));
+                return;
+            }
+            sendAdminMessages(player);
+        }
+
+        void sendAdminMessages(ServerPlayer player) {
+            if (state != State.AVAILABLE) {
+                return;
+            }
+            sendSystemMessage(player, literal("[Anti-Xray] New version available: ")
+                .withStyle(ChatFormatting.GOLD)
+                .append(literal(currentVersion + " -> " + latest.versionNumber()).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
+                .append(literal(" (" + loader + ", MC " + minecraftVersion + ")").withStyle(ChatFormatting.GRAY)));
+            sendSystemMessage(player, literal("[Anti-Xray] Changes:").withStyle(ChatFormatting.GOLD));
+            for (String note : latest.releaseNotes()) {
+                sendSystemMessage(player, literal("[Anti-Xray] - " + note).withStyle(ChatFormatting.GRAY));
+            }
+            MutableComponent download = literal("[Anti-Xray] Download: ").withStyle(ChatFormatting.GOLD);
+            download.append(Objects.requireNonNull(link(latest.downloadUrl(), latest.downloadUrl()), "download link"));
+            sendSystemMessage(player, download);
+            MutableComponent releasePage = literal("[Anti-Xray] Release page: ").withStyle(ChatFormatting.GOLD);
+            releasePage.append(Objects.requireNonNull(link(latest.url(), latest.url()), "release link"));
+            sendSystemMessage(player, releasePage);
         }
     }
 

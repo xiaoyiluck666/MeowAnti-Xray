@@ -65,6 +65,10 @@ public final class MeowConsoleMod {
         FAKE_ORE.onPlayerDisconnect(player);
     }
 
+    public static void onPlayerJoin(ServerPlayer player) {
+        ModrinthUpdateChecker.notifyAdminIfUpdateAvailable(player);
+    }
+
     public static void onPlayerBreakBlock(ServerLevel level, ServerPlayer player, BlockPos pos) {
         FAKE_ORE.onBlockBroken(player, level, pos);
     }

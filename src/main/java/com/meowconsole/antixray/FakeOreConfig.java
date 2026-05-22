@@ -25,8 +25,10 @@ public final class FakeOreConfig {
     public boolean guaranteeHideAllHiddenBlocks = true;
     public boolean lavaObscures = false;
     public boolean usePermission = false;
+    public String bypassPermission = "paper.antixray.bypass";
     public boolean asyncChunkRewrite = true;
     public int asyncWorkerThreads = 1;
+    public int asyncQueueSize = 16;
     public int updateRadius = 2;
     public int updateIntervalTicks = 10;
     public int maxBlocksPerChunk = 32768;
@@ -44,6 +46,7 @@ public final class FakeOreConfig {
         public boolean guaranteeHideAllHiddenBlocks = true;
         public boolean lavaObscures = false;
         public boolean usePermission = false;
+        public String bypassPermission = "paper.antixray.bypass";
         public List<String> hiddenBlocks = defaultHiddenBlocks();
         public List<String> replacementBlocks = defaultReplacementBlocks("overworld");
     }
@@ -371,8 +374,10 @@ public final class FakeOreConfig {
             case "guarantee-hide-all-hidden-blocks" -> guaranteeHideAllHiddenBlocks = parseBoolean(value, guaranteeHideAllHiddenBlocks);
             case "lava-obscures" -> lavaObscures = parseBoolean(value, lavaObscures);
             case "use-permission" -> usePermission = parseBoolean(value, usePermission);
+            case "bypass-permission" -> bypassPermission = parseString(value, bypassPermission);
             case "async-chunk-rewrite" -> asyncChunkRewrite = parseBoolean(value, asyncChunkRewrite);
             case "async-worker-threads" -> asyncWorkerThreads = parseInt(value, 1, 4, asyncWorkerThreads);
+            case "async-queue-size" -> asyncQueueSize = parseInt(value, 0, 1024, asyncQueueSize);
             case "update-radius" -> updateRadius = normalizeUpdateRadius(parseInt(value, 0, 2, updateRadius));
             case "update-interval-ticks" -> updateIntervalTicks = parseInt(value, 1, 100, updateIntervalTicks);
             case "max-blocks-per-chunk" -> maxBlocksPerChunk = parseInt(value, 64, 262144, maxBlocksPerChunk);
@@ -409,6 +414,7 @@ public final class FakeOreConfig {
             case "guarantee-hide-all-hidden-blocks" -> ds.guaranteeHideAllHiddenBlocks = parseBoolean(value, ds.guaranteeHideAllHiddenBlocks);
             case "lava-obscures" -> ds.lavaObscures = parseBoolean(value, ds.lavaObscures);
             case "use-permission" -> ds.usePermission = parseBoolean(value, ds.usePermission);
+            case "bypass-permission" -> ds.bypassPermission = parseString(value, ds.bypassPermission);
             case "hidden-blocks" -> {
                 List<String> list = parseInlineList(value);
                 if (!list.isEmpty()) {
@@ -462,6 +468,11 @@ public final class FakeOreConfig {
         } catch (NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    private String parseString(String value, String fallback) {
+        String parsed = value == null ? "" : value.trim();
+        return parsed.isEmpty() ? fallback : parsed;
     }
 
     static int normalizeMaxBlockHeight(int value) {
@@ -527,8 +538,10 @@ public final class FakeOreConfig {
         appendGlobalScalarIfMissing(lines, presentKeys, "guarantee-hide-all-hidden-blocks", guaranteeHideAllHiddenBlocks);
         appendGlobalScalarIfMissing(lines, presentKeys, "lava-obscures", lavaObscures);
         appendGlobalScalarIfMissing(lines, presentKeys, "use-permission", usePermission);
+        appendGlobalScalarIfMissing(lines, presentKeys, "bypass-permission", bypassPermission);
         appendGlobalScalarIfMissing(lines, presentKeys, "async-chunk-rewrite", asyncChunkRewrite);
         appendGlobalScalarIfMissing(lines, presentKeys, "async-worker-threads", asyncWorkerThreads);
+        appendGlobalScalarIfMissing(lines, presentKeys, "async-queue-size", asyncQueueSize);
         appendGlobalScalarIfMissing(lines, presentKeys, "update-radius", updateRadius);
         appendGlobalScalarIfMissing(lines, presentKeys, "update-interval-ticks", updateIntervalTicks);
         appendGlobalScalarIfMissing(lines, presentKeys, "max-blocks-per-chunk", maxBlocksPerChunk);
@@ -572,6 +585,7 @@ public final class FakeOreConfig {
         appendDimensionScalarIfMissing(lines, presentKeys, "guarantee-hide-all-hidden-blocks", ds.guaranteeHideAllHiddenBlocks);
         appendDimensionScalarIfMissing(lines, presentKeys, "lava-obscures", ds.lavaObscures);
         appendDimensionScalarIfMissing(lines, presentKeys, "use-permission", ds.usePermission);
+        appendDimensionScalarIfMissing(lines, presentKeys, "bypass-permission", ds.bypassPermission);
         return lines;
     }
 
@@ -607,9 +621,11 @@ public final class FakeOreConfig {
                  "guarantee-hide-all-hidden-blocks",
                  "lava-obscures",
                  "use-permission",
-                 "async-chunk-rewrite",
-                 "async-worker-threads",
-                 "update-radius",
+                  "bypass-permission",
+                  "async-chunk-rewrite",
+                  "async-worker-threads",
+                  "async-queue-size",
+                  "update-radius",
                  "update-interval-ticks",
                  "max-blocks-per-chunk" -> true;
             default -> false;
@@ -625,7 +641,8 @@ public final class FakeOreConfig {
                  "mode2-obfuscate-replacement-blocks",
                  "guarantee-hide-all-hidden-blocks",
                  "lava-obscures",
-                 "use-permission" -> true;
+                 "use-permission",
+                 "bypass-permission" -> true;
             default -> false;
         };
     }
@@ -720,10 +737,17 @@ public final class FakeOreConfig {
             "minecraft:deepslate_redstone_ore",
             "minecraft:lapis_ore",
             "minecraft:deepslate_lapis_ore",
+            "minecraft:mossy_cobblestone",
+            "minecraft:obsidian",
+            "minecraft:chest",
             "minecraft:coal_ore",
             "minecraft:deepslate_coal_ore",
             "minecraft:copper_ore",
             "minecraft:deepslate_copper_ore",
+            "minecraft:raw_copper_block",
+            "minecraft:raw_iron_block",
+            "minecraft:clay",
+            "minecraft:ender_chest",
             "minecraft:ancient_debris",
             "minecraft:nether_quartz_ore",
             "minecraft:nether_gold_ore"
@@ -734,7 +758,7 @@ public final class FakeOreConfig {
         return switch (dim) {
             case "nether" -> new ArrayList<>(List.of("minecraft:netherrack", "minecraft:basalt", "minecraft:blackstone"));
             case "end" -> new ArrayList<>(List.of("minecraft:end_stone"));
-            default -> new ArrayList<>(List.of("minecraft:stone", "minecraft:deepslate", "minecraft:tuff", "minecraft:andesite", "minecraft:diorite", "minecraft:granite"));
+            default -> new ArrayList<>(List.of("minecraft:stone", "minecraft:oak_planks", "minecraft:deepslate"));
         };
     }
 }

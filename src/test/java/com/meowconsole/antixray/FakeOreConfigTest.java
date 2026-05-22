@@ -29,8 +29,10 @@ class FakeOreConfigTest {
               guarantee-hide-all-hidden-blocks: false
               lava-obscures: true
               use-permission: true
+              bypass-permission: custom.antixray.bypass
               async-chunk-rewrite: false
               async-worker-threads: 3
+              async-queue-size: 12
               update-radius: 4
               update-interval-ticks: 20
               max-blocks-per-chunk: 4096
@@ -48,6 +50,7 @@ class FakeOreConfigTest {
                   guarantee-hide-all-hidden-blocks: false
                   lava-obscures: true
                   use-permission: true
+                  bypass-permission: custom.nether.bypass
                   hidden-blocks:
                     - minecraft:ancient_debris
                   replacement-blocks:
@@ -66,8 +69,10 @@ class FakeOreConfigTest {
         assertFalse(config.guaranteeHideAllHiddenBlocks);
         assertTrue(config.lavaObscures);
         assertTrue(config.usePermission);
+        assertEquals("custom.antixray.bypass", config.bypassPermission);
         assertFalse(config.asyncChunkRewrite);
         assertEquals(3, config.asyncWorkerThreads);
+        assertEquals(12, config.asyncQueueSize);
         assertEquals(2, config.updateRadius);
         assertEquals(20, config.updateIntervalTicks);
         assertEquals(4096, config.maxBlocksPerChunk);
@@ -84,6 +89,7 @@ class FakeOreConfigTest {
         assertFalse(nether.guaranteeHideAllHiddenBlocks);
         assertTrue(nether.lavaObscures);
         assertTrue(nether.usePermission);
+        assertEquals("custom.nether.bypass", nether.bypassPermission);
         assertEquals(List.of("minecraft:ancient_debris"), nether.hiddenBlocks);
         assertEquals(List.of("minecraft:netherrack"), nether.replacementBlocks);
 
@@ -114,8 +120,10 @@ class FakeOreConfigTest {
         assertTrue(supplemented.contains("  engine-mode: 2"));
         assertTrue(supplemented.contains("  lava-obscures: false"));
         assertTrue(supplemented.contains("  use-permission: false"));
+        assertTrue(supplemented.contains("  bypass-permission: paper.antixray.bypass"));
         assertTrue(supplemented.contains("  async-chunk-rewrite: true"));
         assertTrue(supplemented.contains("  async-worker-threads: 1"));
+        assertTrue(supplemented.contains("  async-queue-size: 16"));
         assertTrue(supplemented.contains("  replacement-blocks:\n    - minecraft:stone"));
         assertTrue(supplemented.contains("  dimension-settings:\n    minecraft:overworld:"));
 
@@ -151,6 +159,7 @@ class FakeOreConfigTest {
         assertTrue(supplemented.contains("    minecraft:the_nether:\n      enabled: false\n      engine-mode: 2"));
         assertTrue(supplemented.contains("      lava-obscures: false"));
         assertTrue(supplemented.contains("      use-permission: false"));
+        assertTrue(supplemented.contains("      bypass-permission: paper.antixray.bypass"));
         assertTrue(supplemented.contains("      replacement-blocks:\n        - minecraft:netherrack"));
         assertFalse(supplemented.contains("    minecraft:overworld:"));
         assertFalse(supplemented.contains("    minecraft:the_end:"));
@@ -167,6 +176,25 @@ class FakeOreConfigTest {
         assertEquals(0, FakeOreConfig.normalizeUpdateRadius(-5));
         assertEquals(2, FakeOreConfig.normalizeUpdateRadius(9));
         assertEquals(1, FakeOreConfig.normalizeUpdateRadius(1));
+    }
+
+    @Test
+    void generatedDefaultsIncludeCurrentPaperParityBlocksAndPermissionNode(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("meowantixray.yml");
+
+        FakeOreConfig config = FakeOreConfig.loadOrCreate(path);
+        String generated = Files.readString(path, StandardCharsets.UTF_8);
+
+        assertEquals("paper.antixray.bypass", config.bypassPermission);
+        assertTrue(generated.contains("  bypass-permission: paper.antixray.bypass"));
+        assertTrue(generated.contains("    - minecraft:raw_copper_block"));
+        assertTrue(generated.contains("    - minecraft:raw_iron_block"));
+        assertTrue(generated.contains("    - minecraft:mossy_cobblestone"));
+        assertTrue(generated.contains("    - minecraft:obsidian"));
+        assertTrue(generated.contains("    - minecraft:chest"));
+        assertTrue(generated.contains("    - minecraft:ender_chest"));
+        assertTrue(generated.contains("    - minecraft:clay"));
+        assertTrue(generated.contains("    - minecraft:oak_planks"));
     }
 
     @Test
@@ -207,6 +235,7 @@ class FakeOreConfigTest {
               enabled: true
               async-chunk-rewrite: false
               async-worker-threads: 4
+              async-queue-size: 0
               hidden-blocks:
                 - minecraft:diamond_ore
               replacement-blocks:
@@ -218,6 +247,7 @@ class FakeOreConfigTest {
 
         assertFalse(config.asyncChunkRewrite);
         assertEquals(4, config.asyncWorkerThreads);
+        assertEquals(0, config.asyncQueueSize);
     }
 }
 

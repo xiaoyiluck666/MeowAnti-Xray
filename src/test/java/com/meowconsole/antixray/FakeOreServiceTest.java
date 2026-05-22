@@ -2,6 +2,7 @@ package com.meowconsole.antixray;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.shorts.ShortOpenHashSet;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.SharedConstants;
 import net.minecraft.world.level.block.Blocks;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
@@ -44,6 +46,7 @@ class FakeOreServiceTest {
             true,
             true,
             2,
+            64,
             dimensions,
             19,
             6
@@ -52,6 +55,7 @@ class FakeOreServiceTest {
         assertTrue(summary.contains("default-max-height=64"));
         assertTrue(summary.contains("async-chunk-rewrite=true"));
         assertTrue(summary.contains("async-worker-threads=2"));
+        assertTrue(summary.contains("async-queue-size=64"));
         assertTrue(summary.contains("minecraft:the_nether(enabled=true,mode=2,max=40)"));
         assertTrue(summary.contains("minecraft:overworld(enabled=true,mode=2,max=64)"));
     }
@@ -65,10 +69,11 @@ class FakeOreServiceTest {
 
     @Test
     void usePermissionBypassesOnlyForAdminLikePlayers() {
-        assertFalse(FakeOreService.shouldBypassWithPermission(false, false));
-        assertFalse(FakeOreService.shouldBypassWithPermission(false, true));
-        assertFalse(FakeOreService.shouldBypassWithPermission(true, false));
-        assertTrue(FakeOreService.shouldBypassWithPermission(true, true));
+        assertFalse(FakeOreService.shouldBypassWithPermission(false, false, false));
+        assertFalse(FakeOreService.shouldBypassWithPermission(false, true, true));
+        assertFalse(FakeOreService.shouldBypassWithPermission(true, false, false));
+        assertTrue(FakeOreService.shouldBypassWithPermission(true, true, false));
+        assertTrue(FakeOreService.shouldBypassWithPermission(true, false, true));
     }
 
     @Test
@@ -94,6 +99,58 @@ class FakeOreServiceTest {
 
         assertTrue(lookup[oreId]);
         assertFalse(lookup[stoneId]);
+    }
+
+    @Test
+    void paperNeighborUpdatePositionsMatchPaperRadiusShapes() {
+        BlockPos center = new BlockPos(10, 20, 30);
+
+        assertEquals(Set.of(
+            new BlockPos(9, 20, 30),
+            new BlockPos(11, 20, 30),
+            new BlockPos(10, 19, 30),
+            new BlockPos(10, 21, 30),
+            new BlockPos(10, 20, 29),
+            new BlockPos(10, 20, 31)
+        ), Set.copyOf(FakeOreService.paperNeighborUpdatePositions(center, 1)));
+
+        assertEquals(Set.of(
+            new BlockPos(9, 20, 30),
+            new BlockPos(8, 20, 30),
+            new BlockPos(9, 19, 30),
+            new BlockPos(9, 21, 30),
+            new BlockPos(9, 20, 29),
+            new BlockPos(9, 20, 31),
+            new BlockPos(11, 20, 30),
+            new BlockPos(12, 20, 30),
+            new BlockPos(11, 19, 30),
+            new BlockPos(11, 21, 30),
+            new BlockPos(11, 20, 29),
+            new BlockPos(11, 20, 31),
+            new BlockPos(10, 19, 30),
+            new BlockPos(10, 18, 30),
+            new BlockPos(10, 19, 29),
+            new BlockPos(10, 19, 31),
+            new BlockPos(10, 21, 30),
+            new BlockPos(10, 22, 30),
+            new BlockPos(10, 21, 29),
+            new BlockPos(10, 21, 31),
+            new BlockPos(10, 20, 29),
+            new BlockPos(10, 20, 28),
+            new BlockPos(10, 20, 31),
+            new BlockPos(10, 20, 32)
+        ), Set.copyOf(FakeOreService.paperNeighborUpdatePositions(center, 2)));
+    }
+
+    @Test
+    void modeTwoDecoysExcludeEntityBlocksLikePaper() {
+        List<String> decoys = FakeOreService.debugMode2DecoyBlockIdsForTest(
+            List.of("minecraft:chest", "minecraft:diamond_ore"),
+            List.of("minecraft:stone")
+        );
+
+        assertFalse(decoys.contains("minecraft:chest"));
+        assertTrue(decoys.contains("minecraft:diamond_ore"));
     }
 
     @Test

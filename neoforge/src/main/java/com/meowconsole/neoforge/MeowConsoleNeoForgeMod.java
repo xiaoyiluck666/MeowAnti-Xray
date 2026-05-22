@@ -19,6 +19,7 @@ public final class MeowConsoleNeoForgeMod {
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.addListener(this::onServerTick);
+        NeoForge.EVENT_BUS.addListener(this::onPlayerJoin);
         NeoForge.EVENT_BUS.addListener(this::onPlayerDisconnect);
         NeoForge.EVENT_BUS.addListener(this::onBlockBreak);
     }
@@ -37,6 +38,12 @@ public final class MeowConsoleNeoForgeMod {
 
     private void onServerTick(ServerTickEvent.Post event) {
         MeowConsoleMod.onServerTick(event.getServer());
+    }
+
+    private void onPlayerJoin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player) {
+            MeowConsoleMod.onPlayerJoin(player);
+        }
     }
 
     private void onPlayerDisconnect(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent event) {

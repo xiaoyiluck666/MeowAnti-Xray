@@ -4,6 +4,7 @@ import com.meowconsole.compat.MinecraftCompat;
 import com.meowconsole.platform.LoadedModInfo;
 import com.meowconsole.platform.LoaderType;
 import com.meowconsole.platform.ModPlatform;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
 
@@ -68,5 +69,87 @@ final class NeoForgeModPlatform implements ModPlatform {
         }
         loaded.sort((left, right) -> left.id().toLowerCase(Locale.ROOT).compareTo(right.id().toLowerCase(Locale.ROOT)));
         return loaded;
+    }
+
+    @Override
+    public boolean hasPermission(ServerPlayer player, String permissionNode) {
+        if (player == null || permissionNode == null || permissionNode.isBlank()) {
+            return false;
+        }
+        return NeoForgePermissionsBridge.hasPermission(player, permissionNode);
+    }
+
+    private static final class NeoForgePermissionsBridge {
+        private static final java.lang.reflect.Method PERMISSION_API_GET = findPermissionApiGet();
+        private static final java.lang.reflect.Method PERMISSION_NODE_GET = findPermissionNodeGet();
+
+        private static boolean hasPermission(ServerPlayer player, String permissionNode) {
+            Boolean apiResult = checkPermissionApi(player, permissionNode);
+            if (apiResult != null) {
+                return apiResult;
+            }
+            return checkPlayerMethod(player, permissionNode);
+        }
+
+        private static Boolean checkPermissionApi(ServerPlayer player, String permissionNode) {
+            if (PERMISSION_API_GET == null || PERMISSION_NODE_GET == null) {
+                return null;
+            }
+            try {
+                Object node = PERMISSION_NODE_GET.invoke(null, permissionNode);
+                Object result = PERMISSION_API_GET.invoke(null, player, node, Boolean.FALSE);
+                return result instanceof Boolean allowed ? allowed : null;
+            } catch (ReflectiveOperationException ignored) {
+                return null;
+            }
+        }
+
+        private static boolean checkPlayerMethod(ServerPlayer player, String permissionNode) {
+            for (java.lang.reflect.Method method : player.getClass().getMethods()) {
+                if (!"hasPermission".equals(method.getName()) || method.getParameterCount() != 1 || method.getParameterTypes()[0] != String.class) {
+                    continue;
+                }
+                try {
+                    Object result = method.invoke(player, permissionNode);
+                    return result instanceof Boolean allowed && allowed;
+                } catch (ReflectiveOperationException ignored) {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private static java.lang.reflect.Method findPermissionApiGet() {
+            try {
+                Class<?> api = Class.forName("net.neoforged.neoforge.server.permission.PermissionAPI");
+                for (java.lang.reflect.Method method : api.getMethods()) {
+                    if (!"getPermission".equals(method.getName()) || method.getParameterCount() != 3) {
+                        continue;
+                    }
+                    Class<?>[] parameters = method.getParameterTypes();
+                    if (parameters[0].isAssignableFrom(ServerPlayer.class) && parameters[2] == boolean.class) {
+                        return method;
+                    }
+                }
+            } catch (ClassNotFoundException ignored) {
+            }
+            return null;
+        }
+
+        private static java.lang.reflect.Method findPermissionNodeGet() {
+            try {
+                Class<?> node = Class.forName("net.neoforged.neoforge.server.permission.nodes.PermissionNode");
+                for (java.lang.reflect.Method method : node.getMethods()) {
+                    if (java.lang.reflect.Modifier.isStatic(method.getModifiers())
+                        && "get".equals(method.getName())
+                        && method.getParameterCount() == 1
+                        && method.getParameterTypes()[0] == String.class) {
+                        return method;
+                    }
+                }
+            } catch (ClassNotFoundException ignored) {
+            }
+            return null;
+        }
     }
 }

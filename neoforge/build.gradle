@@ -58,6 +58,8 @@ neoForge {
 }
 
 dependencies {
+    compileOnly "org.eclipse.jdt:org.eclipse.jdt.annotation:${project.jdt_annotation_version}"
+
     testImplementation platform("org.junit:junit-bom:5.12.2")
     testImplementation "org.junit.jupiter:junit-jupiter"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

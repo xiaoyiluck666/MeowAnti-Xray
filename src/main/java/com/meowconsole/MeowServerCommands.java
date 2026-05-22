@@ -41,7 +41,18 @@ public final class MeowServerCommands {
                 .executes(context -> reloadAntiXray(context.getSource())))
             .then(Commands.literal("profile")
                 .executes(context -> sendAntiXrayProfile(context.getSource())))
+            .then(stressCommand())
             .then(debugCommand);
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> stressCommand() {
+        RequiredArgumentBuilder<CommandSourceStack, Integer> passesArgument = commandArgument("passes", IntegerArgumentType.integer(1, 20))
+            .executes(MeowServerCommands::stressAntiXray);
+        RequiredArgumentBuilder<CommandSourceStack, Integer> radiusArgument = commandArgument("radius", IntegerArgumentType.integer(0, 16))
+            .then(passesArgument);
+        RequiredArgumentBuilder<CommandSourceStack, String> worldArgument = commandArgument("world", StringArgumentType.word())
+            .then(radiusArgument);
+        return Objects.requireNonNull(Commands.literal("stress"), "stress command").then(worldArgument);
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> debugCommand() {
@@ -76,10 +87,14 @@ public final class MeowServerCommands {
             false
         );
         String updateStatus = Objects.requireNonNull(ModrinthUpdateChecker.statusSummary(), "update status");
-        source.sendSuccess(
-            () -> Component.literal(updateStatus),
-            false
-        );
+        if (source.getPlayer() != null) {
+            ModrinthUpdateChecker.sendStatusTo(source.getPlayer());
+        } else {
+            source.sendSuccess(
+                () -> Component.literal(updateStatus),
+                false
+            );
+        }
         return 1;
     }
 
@@ -101,6 +116,27 @@ public final class MeowServerCommands {
             () -> Component.literal("[Anti-Xray] " + MeowConsoleMod.fakeOre().profileSummary()),
             false
         );
+        return 1;
+    }
+
+    private static int stressAntiXray(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        if (!(source.getServer() instanceof DedicatedServer server) || !server.isRunning()) {
+            source.sendFailure(Component.literal("[Anti-Xray] server is not ready."));
+            return 0;
+        }
+
+        String worldName = StringArgumentType.getString(context, "world");
+        ServerLevel level = resolveWorld(server, worldName);
+        if (level == null) {
+            source.sendFailure(Component.literal("[Anti-Xray] world not found: " + worldName));
+            return 0;
+        }
+
+        int radius = IntegerArgumentType.getInteger(context, "radius");
+        int passes = IntegerArgumentType.getInteger(context, "passes");
+        String result = MeowConsoleMod.fakeOre().stressChunkRewrite(level, 0, 0, radius, passes);
+        source.sendSuccess(() -> Component.literal("[Anti-Xray] " + result), false);
         return 1;
     }
 

@@ -2,6 +2,7 @@ package com.meowconsole.platform;
 
 import java.nio.file.Path;
 import java.util.Collection;
+import net.minecraft.server.level.ServerPlayer;
 
 public final class PlatformHelper {
     private static volatile ModPlatform platform;
@@ -46,5 +47,9 @@ public final class PlatformHelper {
 
     public static Collection<LoadedModInfo> loadedMods() {
         return get().loadedMods();
+    }
+
+    public static boolean hasPermission(ServerPlayer player, String permissionNode) {
+        return get().hasPermission(player, permissionNode);
     }
 }

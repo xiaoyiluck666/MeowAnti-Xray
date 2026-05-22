@@ -194,13 +194,21 @@ public final class MinecraftCompat {
         if (noArg instanceof Number number) {
             return number.intValue();
         }
-        try {
-            Method method = palette.getClass().getMethod("getSerializedSize", Block.BLOCK_STATE_REGISTRY.getClass());
-            Object value = method.invoke(palette, Block.BLOCK_STATE_REGISTRY);
-            return ((Number) value).intValue();
-        } catch (ReflectiveOperationException exception) {
-            throw new IllegalStateException("Failed to read palette serialized size", exception);
+        for (Method method : palette.getClass().getMethods()) {
+            if (!method.getName().equals("getSerializedSize") || method.getParameterCount() != 1) {
+                continue;
+            }
+            if (!acceptsArg(method.getParameterTypes()[0], Block.BLOCK_STATE_REGISTRY)) {
+                continue;
+            }
+            try {
+                Object value = method.invoke(palette, Block.BLOCK_STATE_REGISTRY);
+                return ((Number) value).intValue();
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Failed to read palette serialized size", exception);
+            }
         }
+        throw new IllegalStateException("No supported palette serialized size method found on " + palette.getClass().getName());
     }
 
     public static void writeLongArray(FriendlyByteBuf buffer, long[] raw) {
@@ -477,6 +485,7 @@ public final class MinecraftCompat {
                 continue;
             }
             try {
+                method.setAccessible(true);
                 return method.invoke(target, arg);
             } catch (ReflectiveOperationException exception) {
                 throw new IllegalStateException("Failed to invoke " + target.getClass().getName() + "." + methodName, exception);
@@ -495,6 +504,7 @@ public final class MinecraftCompat {
                 continue;
             }
             try {
+                method.setAccessible(true);
                 return method.invoke(target, firstArg, secondArg);
             } catch (ReflectiveOperationException exception) {
                 throw new IllegalStateException("Failed to invoke " + target.getClass().getName() + "." + methodName, exception);
