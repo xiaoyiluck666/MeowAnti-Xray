@@ -161,6 +161,26 @@ class FakeOreServiceTest {
     }
 
     @Test
+    void engineModeOneNaturalReplacementMatchesPaperDimensionAndHeightRules() {
+        assertEquals(
+            Blocks.STONE.defaultBlockState(),
+            FakeOreService.debugNaturalReplacementForTest("OVERWORLD", 4, Blocks.DEEPSLATE_DIAMOND_ORE.defaultBlockState())
+        );
+        assertEquals(
+            Blocks.DEEPSLATE.defaultBlockState(),
+            FakeOreService.debugNaturalReplacementForTest("OVERWORLD", -1, Blocks.DIAMOND_ORE.defaultBlockState())
+        );
+        assertEquals(
+            Blocks.NETHERRACK.defaultBlockState(),
+            FakeOreService.debugNaturalReplacementForTest("NETHER", 32, Blocks.ANCIENT_DEBRIS.defaultBlockState())
+        );
+        assertEquals(
+            Blocks.END_STONE.defaultBlockState(),
+            FakeOreService.debugNaturalReplacementForTest("END", 32, Blocks.DIAMOND_ORE.defaultBlockState())
+        );
+    }
+
+    @Test
     void solidStateLookupRespectsLavaObscures() {
         boolean[] withoutLava = FakeOreService.buildSolidStateLookup(false);
         boolean[] withLava = FakeOreService.buildSolidStateLookup(true);

@@ -2752,11 +2752,18 @@ public final class FakeOreService {
         if (replacementProfile == ReplacementProfile.END) {
             return Blocks.END_STONE.defaultBlockState();
         }
-        String key = BuiltInRegistries.BLOCK.getKey(real.getBlock()).toString();
-        if (key.contains("deepslate") || y < 0) {
+        if (y < 0) {
             return Blocks.DEEPSLATE.defaultBlockState();
         }
         return Blocks.STONE.defaultBlockState();
+    }
+
+    static BlockState debugNaturalReplacementForTest(String replacementProfile, int y, BlockState real) {
+        return new FakeOreService().naturalReplacement(
+            ReplacementProfile.valueOf(Objects.requireNonNull(replacementProfile, "replacementProfile")),
+            y,
+            Objects.requireNonNull(real, "real")
+        );
     }
 
     private ReplacementProfile replacementProfile(ServerLevel level) {
