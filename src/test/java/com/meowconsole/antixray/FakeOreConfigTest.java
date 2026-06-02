@@ -179,7 +179,7 @@ class FakeOreConfigTest {
     }
 
     @Test
-    void generatedDefaultsIncludeCurrentPaperParityBlocksAndPermissionNode(@TempDir Path tempDir) throws Exception {
+    void generatedDefaultsIncludePaperStyleBlocksProjectAdditionsAndPermissionNode(@TempDir Path tempDir) throws Exception {
         Path path = tempDir.resolve("meowantixray.yml");
 
         FakeOreConfig config = FakeOreConfig.loadOrCreate(path);

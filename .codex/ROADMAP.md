@@ -24,26 +24,21 @@ Last updated: 2026-06-02
 
 These are suitable for `1.0.3` or another small maintenance release if the change stays narrow.
 
-1. Re-run Paper parity check.
-   - Refresh local Paper `main` and compare anti-xray defaults and behavior.
-   - Current known baseline: Paper HEAD `10a73fe40f39d51e6a35e55154229bc9508a16d1`.
-   - Focus on config fields, hidden/replacement defaults, neighbor reveal shape, and engine mode behavior.
-
-2. Improve release automation safety.
+1. Improve release automation safety.
    - Add a small local release helper script that builds, checks jar metadata, lists target Modrinth version numbers, and refuses to upload if the version already exists.
    - Do not store Modrinth tokens in repo or `.codex`.
    - Continue publishing separate `x.y.z+fabric` and `x.y.z+neoforge` Modrinth versions.
 
-3. Fabric profiling follow-up.
+2. Fabric profiling follow-up.
    - Optional spark report for Fabric 8 fake network player run.
    - Current Fabric 8-player runner result has no spark link, only runner metrics.
    - Capture profile only if useful for public release notes or performance comparison.
 
-4. Profile output polish.
+3. Profile output polish.
    - Consider adding sync fallback ratio or clearer pressure status to `/antixray profile`.
    - Keep output compact enough for in-game chat.
 
-5. Update checker UX polish.
+4. Update checker UX polish.
    - Verify admin notification format after `1.0.2`.
    - Confirm update checker treats `1.0.2+fabric` / `1.0.2+neoforge` as equivalent to local `1.0.2`.
 
@@ -71,6 +66,9 @@ These are broader and should not be mixed into a patch release unless there is a
   - Published NeoForge Minecraft range is `[26.1,26.1.3)` in metadata.
 - Paper anti-xray implementation changes.
   - Paper can rewrite packet buffers in the native serialization path; this mod must snapshot enough state at the mod layer, so exact implementation parity is not expected.
+  - Last checked Paper `main`: `10a73fe40f39d51e6a35e55154229bc9508a16d1` on 2026-06-02.
+  - Paper default hidden/replacement fields were unchanged at that HEAD.
+  - This project intentionally includes extra default hidden blocks for Nether protection: `ancient_debris`, `nether_quartz_ore`, `nether_gold_ore`.
 - Async queue defaults.
   - Default `async-queue-size=16` prioritizes memory safety.
   - Larger queues (`32` / `64`) can improve throughput but increase memory headroom requirements.

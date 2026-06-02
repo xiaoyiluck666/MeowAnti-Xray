@@ -12,7 +12,7 @@
 - Modrinth 更新检测：`src/main/java/com/meowconsole/update/ModrinthUpdateChecker.java`，项目 slug `meowanti-xray`，公开页 `https://modrinth.com/mod/meowanti-xray`。
 - 拆分来源项目：MeowConsole，Modrinth 公开页 `https://modrinth.com/mod/meowconsole`。
 - 当前目标：Minecraft `26.1.2`，Java `25`；NeoForge 目标版本 `26.1.2.30-beta`。
-- Paper parity 基准：2026-05-19 对齐 PaperMC/Paper `main` HEAD `5c917dababca4087b9df4d44b415d85125479830` 的 anti-xray 配置/行为要点。
+- Paper parity 基准：2026-06-02 复查 PaperMC/Paper `main` HEAD `10a73fe40f39d51e6a35e55154229bc9508a16d1` 的 anti-xray 配置/行为要点；Paper 默认 hidden/replacement 字段未新增。本项目默认 hidden blocks 在 Paper 风格默认值外额外包含 `ancient_debris`、`nether_quartz_ore`、`nether_gold_ore`，属于独立反矿透模组的实用保护增强，不视为需要回退的 parity bug。
 - 反矿透权限：配置项 `use-permission` 开启后优先检查 `bypass-permission`，默认 `paper.antixray.bypass`；Fabric/NeoForge 权限 API 均用反射可选桥接，缺失时回退到管理员/OP 权限等级，避免 loader 依赖硬绑定。
 - 反矿透异步重写背压：`async-worker-threads` 默认 1，`async-queue-size` 默认 16；异步容量为两者之和，容量满时同步 fallback。该默认值优先防止模组层 section/packet 快照任务堆积导致 OOM；内存充足且希望更高跑图吞吐时可把 `async-queue-size` 调到 32 或 64。
 - 线程边界：本项目线程只处理反矿透功能；不要把 Meow Console 的控制台、睡觉、玩家消息、飞行保护、Velocity、MCDR 等非反矿透记忆写入本项目。
