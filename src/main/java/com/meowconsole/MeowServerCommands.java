@@ -8,6 +8,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.meowconsole.compat.MinecraftCompat;
+import com.meowconsole.platform.PlatformHelper;
 import com.meowconsole.update.ModrinthUpdateChecker;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -78,6 +79,12 @@ public final class MeowServerCommands {
     }
 
     private static int sendAntiXrayStatus(CommandSourceStack source) {
+        source.sendSuccess(
+            () -> Component.literal("[Anti-Xray] runtime: loader=" + PlatformHelper.loaderType().modrinthLoaderId()
+                + ", version=" + PlatformHelper.modVersion("meowantixray", "unknown")
+                + ", minecraft=" + MinecraftCompat.currentMinecraftVersionId()),
+            false
+        );
         source.sendSuccess(
             () -> Component.literal("[Anti-Xray] config source: " + MeowConsoleMod.fakeOre().configLoadSummary()),
             false

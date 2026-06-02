@@ -6,6 +6,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.SharedConstants;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -47,6 +48,7 @@ class FakeOreServiceTest {
             true,
             2,
             64,
+            66,
             dimensions,
             19,
             6
@@ -56,6 +58,7 @@ class FakeOreServiceTest {
         assertTrue(summary.contains("async-chunk-rewrite=true"));
         assertTrue(summary.contains("async-worker-threads=2"));
         assertTrue(summary.contains("async-queue-size=64"));
+        assertTrue(summary.contains("async-capacity=66"));
         assertTrue(summary.contains("minecraft:the_nether(enabled=true,mode=2,max=40)"));
         assertTrue(summary.contains("minecraft:overworld(enabled=true,mode=2,max=64)"));
     }
@@ -86,6 +89,10 @@ class FakeOreServiceTest {
         assertTrue(summary.contains("revealTasks="));
         assertTrue(summary.contains("revealAvgMs="));
         assertTrue(summary.contains("revealMaxMs="));
+        assertTrue(summary.contains("syncChunkSends="));
+        assertTrue(summary.contains("async{enabled="));
+        assertTrue(summary.contains("availablePermits="));
+        assertTrue(summary.contains("syncChunkSends/s="));
     }
 
     @Test
@@ -182,6 +189,25 @@ class FakeOreServiceTest {
     }
 
     @Test
+    void caveAdjacentHiddenOreStaysExposedInsteadOfBackfilled() {
+        BlockState[] states = filledSection(Blocks.STONE.defaultBlockState());
+        states[blockIndex(8, 8, 8)] = Blocks.DIAMOND_ORE.defaultBlockState();
+        for (int lx = 9; lx < 16; lx++) {
+            states[blockIndex(lx, 8, 8)] = Blocks.AIR.defaultBlockState();
+        }
+
+        assertTrue(FakeOreService.debugSyntheticSectionExposedForTest(states, 8, 8, 8, false));
+    }
+
+    @Test
+    void fullyEnclosedHiddenOreIsNotExposedAndCanBeBackfilled() {
+        BlockState[] states = filledSection(Blocks.STONE.defaultBlockState());
+        states[blockIndex(8, 8, 8)] = Blocks.DIAMOND_ORE.defaultBlockState();
+
+        assertFalse(FakeOreService.debugSyntheticSectionExposedForTest(states, 8, 8, 8, false));
+    }
+
+    @Test
     void exposedBlocksAreNotMasked() {
         assertTrue(FakeOreService.shouldMaskState(true, false, true, false));
         assertTrue(FakeOreService.shouldMaskState(false, true, false, true));
@@ -269,5 +295,15 @@ class FakeOreServiceTest {
         Field field = FakeOreService.class.getDeclaredField("chunkRewriteExecutor");
         field.setAccessible(true);
         return field;
+    }
+
+    private static BlockState[] filledSection(BlockState state) {
+        BlockState[] states = new BlockState[4096];
+        java.util.Arrays.fill(states, state);
+        return states;
+    }
+
+    private static int blockIndex(int lx, int ly, int lz) {
+        return (ly << 8) | (lz << 4) | lx;
     }
 }

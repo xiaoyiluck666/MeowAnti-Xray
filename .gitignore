@@ -17,6 +17,7 @@ Thumbs.db
 # Local archives / temp
 *.zip
 *.log
+.playwright-cli/
 tmp_*.txt
 tmp-neoforge-installer-test/
 .serena/

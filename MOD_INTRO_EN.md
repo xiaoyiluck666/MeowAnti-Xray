@@ -1,27 +1,34 @@
-# Meow Anti-Xray
+# 🛡️ Meow Anti-Xray
 
-`Meow Anti-Xray` is a server-side Minecraft anti-xray mod for Fabric and NeoForge. It brings a Paper-like ore hiding experience to modded dedicated servers without requiring any client-side install. Players can join normally, while the server protects valuable blocks by rewriting chunk packets before they reach the client. 🛡️⛏️
+> Server-side anti-xray for Fabric and NeoForge survival servers.<br>
+> ⛏️ Paper-style ore obfuscation, 🚀 no client install, 🔌 one shared core across both loaders.
 
-This project was split from `MeowConsole` and now focuses purely on anti-xray protection. Console utilities, sleep features, player-message helpers, and other unrelated tools were removed so the mod stays lightweight, purpose-built, and easier to profile. Original project: <https://modrinth.com/mod/meowconsole> 🐾
+`Meow Anti-Xray` focuses on one job: bringing a Paper-like anti-xray experience to modded dedicated servers. Players join normally with a vanilla or modded client, while the server rewrites chunk packets before they are sent, hiding unexposed valuable blocks from xray clients.
 
-## Highlights
+This project was split from `MeowConsole` and now contains only anti-xray functionality. Console utilities, sleep features, player-message helpers, and unrelated tools were removed so the mod stays lightweight, focused, and easier to profile.
 
-- 🪨 **Paper-style ore obfuscation**: Uses engine mode 2 style chunk packet rewriting by default, hiding valuable blocks and replacing them with decoy states client-side.
-- 🧭 **Paper Anti-Xray parity work**: Tracks Paper-style defaults for hidden blocks, replacement blocks, neighbor refresh behavior, reveal updates, and the `paper.antixray.bypass` permission node.
-- 🚫 **Safer decoy selection**: Block entities such as chests and ender chests are excluded from mode 2 decoys, matching Paper's safer behavior and reducing client-side display issues.
-- 🌍 **Per-dimension configuration**: Configure hidden blocks, replacement blocks, max height, and enabled state separately for the Overworld, Nether, End, and custom dimensions.
-- ⚡ **Async chunk packet rewriting**: Moves rewrite work away from the main thread to reduce pressure while players explore, teleport, or load new terrain.
-- 🧯 **Async backpressure**: Adds `async-queue-size` to limit queued rewrite work under heavy chunk loading, preventing large snapshot queues from growing into memory spikes or OOM crashes.
-- 📊 **Built-in profiling**: Use `/antixray profile` to inspect rewrite counts, average rewrite time, max rewrite time, reveal packets, and other useful diagnostics.
-- 🔍 **Smart reveal updates**: Mining, block-break starts, and explosions refresh nearby real blocks using a Paper-style neighbor update shape.
-- 🔐 **Permission bypass support**: When `use-permission` is enabled, `bypass-permission` controls who can bypass anti-xray. Fabric and NeoForge permission APIs are bridged when available, with OP fallback.
-- 🔌 **Fabric / NeoForge support**: One shared anti-xray core is maintained across both loaders for consistent behavior and configuration.
+## ✨ Why Use Meow Anti-Xray
 
-## Performance Notes
+- 🚀 **Server-side only**: Install it on the server; players do not need to install anything.
+- 🧭 **Paper-style behavior**: Uses an engine mode 2 inspired default setup and tracks Paper-style hidden blocks, replacement blocks, reveal updates, and neighbor refresh behavior.
+- 🔌 **Built for modded servers**: Fabric and NeoForge share the same anti-xray core, keeping configuration and behavior aligned across loaders.
+- 🧱 **Safer decoys**: Block entities such as chests and ender chests are excluded from fake ore candidates, reducing visual glitches and confusing client-side states.
+- ⚡ **Stable under exploration load**: Async chunk packet rewriting uses bounded backpressure to avoid unbounded snapshot queues and memory spikes.
+- 📊 **Readable diagnostics**: `/antixray profile` reports rewrite counts, timings, async capacity, queue pressure, and sync fallback activity so server owners can tune with real data.
 
-The main cost of anti-xray protection is chunk packet rewriting when players load new chunks. This is most visible during fast exploration, RCON teleport routes, high view distance, pregenerated worlds being explored for the first time, or many players loading different areas at once.
+## 🧩 Features
 
-Recent optimization work reviewed Paper's implementation path. Paper can hook directly into vanilla chunk packet serialization and work with lighter packet metadata. A Fabric / NeoForge mod has to stay loader-compatible and therefore needs to snapshot enough section and packet data before rewriting asynchronously. To keep that safe under load, Meow Anti-Xray now applies bounded async backpressure:
+- 💎 Hides diamonds, ancient debris, redstone, lapis, gold, and other valuable blocks.
+- 🪨 Replaces hidden blocks client-side with configurable decoy states.
+- 🔍 Reveals nearby real blocks when players mine, start breaking blocks, or explosions modify terrain.
+- 🌍 Supports separate settings for the Overworld, Nether, End, and custom dimensions.
+- ⚙️ Supports per-dimension height ranges, hidden block lists, replacement block lists, and enable switches.
+- 🔐 Supports permission bypass through `paper.antixray.bypass` or a custom permission node.
+- 📣 Checks Modrinth for updates asynchronously and shows the latest status in `/antixray status`.
+
+## ⚙️ Performance Model
+
+The expensive part of anti-xray protection happens when players load new chunks. Meow Anti-Xray moves chunk packet rewriting away from the main thread when possible and limits queued async work with `async-queue-size`:
 
 ```yml
 anti-xray:
@@ -30,24 +37,59 @@ anti-xray:
   async-queue-size: 16
 ```
 
-`async-queue-size` is configurable. The default `16` favors memory safety and prevents queued snapshot work from growing without bounds. Servers with more memory can try `32` or `64` for higher exploration throughput. In local stress testing with 8 real network fake players repeatedly teleporting and loading chunks, the old unbounded path could trigger Java heap OOM; the bounded path completed the test cleanly with no client errors.
+The default favors memory safety. Servers with more memory or heavy exploration traffic can try `32` or `64`, then use `/antixray profile` to watch for sync fallback and rewrite timings.
 
-## Good Fit For
+Paper can hook directly into vanilla chunk packet serialization. A Fabric / NeoForge mod has to keep enough snapshot data to rewrite packets safely across loaders. This project aims for Paper-style protection with an implementation tuned for the mod loader environment, not a line-by-line copy of Paper internals.
 
-- Fabric / NeoForge survival servers
-- Public, semi-public, and friend-group servers
-- Servers that want Paper-like anti-xray while staying in the modded server ecosystem
-- Pregenerated worlds, high-view-distance servers, and communities with frequent exploration
+## 📈 Stress-Tested
 
-Pregeneration or chunk preloading does not bypass this mod. Meow Anti-Xray applies when chunk packets are sent to player clients, not when chunks are generated or loaded on the server. Web map renderers that read real server chunk data directly are different: those are not player chunk packets, so they need their own hiding or rendering configuration.
+Meow Anti-Xray has been tested with real exploration and heavy chunk-loading workloads. The numbers below come from local Fabric / NeoForge dev servers, spark profiler reports, and the project's network fake-player load runner. The goal was to verify stable chunk packet rewriting under real loading pressure.
 
-## Config
+| Scenario | Result |
+| --- | --- |
+| 🧪 Fabric real single-player exploration | Stable `20.00 TPS`, median MSPT `3.31ms`, with `meowantixray` taking about `3.55%` in the server-thread mods view |
+| 🔥 NeoForge stress test with 8 network fake players | `36,233` chunks processed in `91s`, about `398.06 chunks/s`, `0` client errors |
+| 🚀 Higher-throughput async queue test | With `async-queue-size=64`, `38,037` chunks processed in `91s`, about `417.92 chunks/s`, `0` client errors |
+
+These tests show that the default configuration favors memory stability and prevents async rewrite work from growing into an unbounded queue during heavy exploration. Servers with more memory can raise `async-queue-size` to trade memory headroom for higher chunk throughput. Full spark reports:
+
+- 🧪 Fabric real exploration: <https://spark.lucko.me/btQdhJh1gH>
+- 🔥 NeoForge 8 fake players, conservative default queue: <https://spark.lucko.me/yFi0jlgOf4>
+- 🚀 NeoForge 8 fake players, higher-throughput queue: <https://spark.lucko.me/FyVDZTMgHb>
+
+## 🌍 Good Fit For
+
+- 🧱 Fabric / NeoForge survival servers
+- 🤝 Public, semi-public, and friend-group servers
+- 🛡️ Servers that want strong anti-xray protection while staying in the modded ecosystem
+- 🗺️ Pregenerated worlds, high-view-distance servers, frequent teleport routes, and active exploration
+- 🐾 Servers migrating from the old MeowConsole built-in anti-xray module
+
+Pregeneration or chunk preloading does not bypass this mod. It works when chunk packets are sent to player clients; it does not modify stored world data. Web maps and offline renderers that read real chunk data directly need their own hiding or rendering configuration.
+
+## 🚀 Quick Start
+
+1. Download the jar for your loader from Modrinth: use the Fabric file for Fabric servers and the NeoForge file for NeoForge servers.
+2. Put the jar in the server `mods` folder.
+3. Start the server once to generate:
 
 ```text
 config/meowantixray.yml
 ```
 
-## Links
+4. Tune hidden blocks, replacement blocks, height ranges, and async settings for your server.
+5. Use `/antixray reload` to reload the config, then check `/antixray status` and `/antixray profile`.
+
+## 🧰 Commands
+
+```text
+/antixray status
+/antixray reload
+/antixray profile
+/antixray debug <world> <x> <y> <z>
+```
+
+## 🔗 Links
 
 - GitHub: <https://github.com/xiaoyiluck666/MeowAnti-Xray>
 - Issues: <https://github.com/xiaoyiluck666/MeowAnti-Xray/issues>

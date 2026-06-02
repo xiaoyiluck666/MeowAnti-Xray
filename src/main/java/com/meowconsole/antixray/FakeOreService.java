@@ -82,6 +82,7 @@ public final class FakeOreService {
     private final LongAdder statRevealTasks = new LongAdder();
     private final LongAdder statRevealNanos = new LongAdder();
     private final AtomicLong statRevealMaxNanos = new AtomicLong();
+    private final LongAdder statSyncChunkSends = new LongAdder();
     private long profileLastNano = System.nanoTime();
     private long profileLastChunks = 0L;
     private long profileLastSections = 0L;
@@ -92,6 +93,7 @@ public final class FakeOreService {
     private long profileLastChunkRewriteNanos = 0L;
     private long profileLastRevealTasks = 0L;
     private long profileLastRevealNanos = 0L;
+    private long profileLastSyncChunkSends = 0L;
     private volatile ExecutorService chunkRewriteExecutor;
     private volatile int chunkRewriteExecutorThreads;
     private volatile int chunkRewriteExecutorQueueSize = -1;
@@ -545,6 +547,7 @@ public final class FakeOreService {
             config.asyncChunkRewrite,
             config.asyncWorkerThreads,
             config.asyncQueueSize,
+            asyncRewriteCapacity(),
             dimensionSummaries,
             globalPalette.hiddenBlockIds.size(),
             globalPalette.replacementBlockIds.size()
@@ -640,6 +643,10 @@ public final class FakeOreService {
         long chunkRewriteNanos = statChunkRewriteNanos.sum();
         long revealTasks = statRevealTasks.sum();
         long revealNanos = statRevealNanos.sum();
+        long syncChunkSends = statSyncChunkSends.sum();
+        int asyncCapacity = asyncRewriteCapacity();
+        int asyncAvailable = asyncAvailablePermits(asyncCapacity);
+        int asyncInFlight = Math.max(0, asyncCapacity - asyncAvailable);
 
         double seconds = Math.max(0.001D, (now - profileLastNano) / 1_000_000_000.0D);
         long dChunks = chunks - profileLastChunks;
@@ -651,6 +658,7 @@ public final class FakeOreService {
         long dChunkRewriteNanos = chunkRewriteNanos - profileLastChunkRewriteNanos;
         long dRevealTasks = revealTasks - profileLastRevealTasks;
         long dRevealNanos = revealNanos - profileLastRevealNanos;
+        long dSyncChunkSends = syncChunkSends - profileLastSyncChunkSends;
 
         profileLastNano = now;
         profileLastChunks = chunks;
@@ -662,6 +670,7 @@ public final class FakeOreService {
         profileLastChunkRewriteNanos = chunkRewriteNanos;
         profileLastRevealTasks = revealTasks;
         profileLastRevealNanos = revealNanos;
+        profileLastSyncChunkSends = syncChunkSends;
 
         return "profile total{chunks=" + chunks
             + ", sections=" + sections
@@ -674,6 +683,13 @@ public final class FakeOreService {
             + ", revealTasks=" + revealTasks
             + ", revealAvgMs=" + formatAverageMillis(revealNanos, revealTasks)
             + ", revealMaxMs=" + formatMillis(statRevealMaxNanos.get())
+            + ", syncChunkSends=" + syncChunkSends
+            + "} async{enabled=" + config.asyncChunkRewrite
+            + ", workerThreads=" + Math.max(1, config.asyncWorkerThreads)
+            + ", queueSize=" + Math.max(0, config.asyncQueueSize)
+            + ", capacity=" + asyncCapacity
+            + ", inFlight=" + asyncInFlight
+            + ", availablePermits=" + asyncAvailable
             + "} delta(" + String.format("%.1fs", seconds) + "){chunks/s=" + String.format("%.1f", dChunks / seconds)
             + ", sections/s=" + String.format("%.1f", dSections / seconds)
             + ", blocks/s=" + String.format("%.1f", dBlocks / seconds)
@@ -683,7 +699,16 @@ public final class FakeOreService {
             + ", rewriteAvgMs=" + formatAverageMillis(dChunkRewriteNanos, dChunkRewriteTasks)
             + ", revealTasks/s=" + String.format("%.1f", dRevealTasks / seconds)
             + ", revealAvgMs=" + formatAverageMillis(dRevealNanos, dRevealTasks)
+            + ", syncChunkSends/s=" + String.format("%.1f", dSyncChunkSends / seconds)
             + "}";
+    }
+
+    private int asyncAvailablePermits(int fallbackCapacity) {
+        Semaphore permits = chunkRewritePermits;
+        if (permits == null) {
+            return fallbackCapacity;
+        }
+        return Math.max(0, permits.availablePermits());
     }
 
     private static void recordDuration(LongAdder tasks, LongAdder nanos, AtomicLong maxNanos, long elapsedNanos) {
@@ -950,6 +975,7 @@ public final class FakeOreService {
     }
 
     private void fallbackSyncChunkSend(ChunkSendContext sendContext) {
+        statSyncChunkSends.increment();
         obfuscateChunkPacket(
             sendContext.connection().player,
             sendContext.level(),
@@ -1093,8 +1119,8 @@ public final class FakeOreService {
             packetInfo.baseX(),
             packetInfo.baseZ(),
             packetInfo.maxY(),
-            packetInfo.originalBuffer().clone(),
-            packetInfo.sourceSectionSizes().clone(),
+            packetInfo.originalBuffer(),
+            packetInfo.sourceSectionSizes(),
             snapshotCenterSections(sendContext.level(), packetInfo),
             snapshotNeighborSections(sendContext.level(), packetInfo.westChunk()),
             snapshotNeighborSections(sendContext.level(), packetInfo.eastChunk()),
@@ -1138,15 +1164,6 @@ public final class FakeOreService {
     }
 
     private SectionSnapshot snapshotSection(int sectionY, LevelChunkSection section, int packetOffset, int serializedSize) {
-        BlockState[] states = new BlockState[4096];
-        for (int ly = 0; ly < 16; ly++) {
-            for (int lz = 0; lz < 16; lz++) {
-                for (int lx = 0; lx < 16; lx++) {
-                    states[blockIndex(lx, ly, lz)] = section.getBlockState(lx, ly, lz);
-                }
-            }
-        }
-
         SectionStorageAccess storageAccess = new SectionStorageAccess(section.getStates());
         try {
             int[] unpacked = new int[4096];
@@ -1155,7 +1172,6 @@ public final class FakeOreService {
             int paletteSerializedSize = MinecraftCompat.paletteSerializedSize(storageAccess.palette());
             return new SectionSnapshot(
                 sectionY,
-                states,
                 packetOffset,
                 serializedSize,
                 storageAccess.storage().getBits(),
@@ -1588,6 +1604,25 @@ public final class FakeOreService {
 
     static boolean shouldRevealState(boolean hidden, boolean exposed) {
         return !hidden || exposed;
+    }
+
+    static boolean debugSyntheticSectionExposedForTest(BlockState[] states, int lx, int ly, int lz, boolean lavaObscures) {
+        BlockState[] safeStates = Objects.requireNonNull(states, "states");
+        if (safeStates.length != 4096) {
+            throw new IllegalArgumentException("states must contain exactly one 16x16x16 section");
+        }
+        boolean[] hidden = new boolean[4096];
+        boolean[] replacement = new boolean[4096];
+        boolean[] solid = new boolean[4096];
+        for (int i = 0; i < safeStates.length; i++) {
+            solid[i] = isPrecomputedSolidState(lavaObscures, safeStates[i]);
+        }
+        SectionPaletteReadResult centerRead = new SectionPaletteReadResult(false, false, false, hidden, replacement, solid);
+        VisibilityBuildResult visibility = new FakeOreService().buildSectionVisibility(
+            centerRead,
+            new VisibilityNeighborhood(null, null, null, null, null, null)
+        );
+        return visibility.visibility().isExposed(lx, ly, lz);
     }
 
     private boolean isExposed(ServerLevel level, BlockPos pos, VisibilityBuildResult visibilityBuild) {
@@ -2034,7 +2069,17 @@ public final class FakeOreService {
         SectionPaletteReadScratch scratch = SECTION_PALETTE_READ_SCRATCH.get();
         SectionStorageAccess storageAccess = new SectionStorageAccess(section.getStates());
         try {
-            return readSectionPalette(storageAccess.palette(), storageAccess.storage(), palette, solidOut, scratch);
+            int[] unpacked = scratch.unpackedIndices;
+            storageAccess.storage().unpack(unpacked);
+            return readSectionPalette(
+                storageAccess.palette(),
+                unpacked.length,
+                index -> Objects.requireNonNull(storageAccess.palette().valueFor(index), "sourcePalette.valueFor(...)"),
+                unpacked,
+                palette,
+                solidOut,
+                scratch
+            );
         } finally {
             storageAccess.close();
         }
@@ -2044,8 +2089,8 @@ public final class FakeOreService {
         SectionPaletteReadScratch scratch = SECTION_PALETTE_READ_SCRATCH.get();
         if (section.globalPalette()) {
             return readGlobalPaletteStates(
-                section.states().length,
-                index -> section.states()[index],
+                section.stateCount(),
+                section::stateAt,
                 palette,
                 solidOut,
                 scratch
@@ -2063,32 +2108,32 @@ public final class FakeOreService {
 
     private SectionPaletteReadResult readSectionPalette(
         net.minecraft.world.level.chunk.Palette<BlockState> sourcePalette,
-        BitStorage storage,
+        int paletteSize,
+        IntFunction<BlockState> paletteEntryResolver,
+        int[] unpackedIndices,
         Palette palette,
         boolean[] solidOut,
         SectionPaletteReadScratch scratch
     ) {
         net.minecraft.world.level.chunk.Palette<BlockState> safeSourcePalette =
             Objects.requireNonNull(sourcePalette, "sourcePalette");
-        BitStorage safeStorage = Objects.requireNonNull(storage, "storage");
+        IntFunction<BlockState> safePaletteEntryResolver = Objects.requireNonNull(paletteEntryResolver, "paletteEntryResolver");
+        int[] safeUnpackedIndices = Objects.requireNonNull(unpackedIndices, "unpackedIndices");
         Palette safePalette = Objects.requireNonNull(palette, "palette");
         SectionPaletteReadScratch safeScratch = Objects.requireNonNull(scratch, "scratch");
-        int[] unpackedIndices = Objects.requireNonNull(safeScratch.unpackedIndices, "unpackedIndices");
         if (safeSourcePalette instanceof GlobalPalette<BlockState>) {
-            safeStorage.unpack(unpackedIndices);
             return readGlobalPaletteStates(
-                unpackedIndices.length,
-                index -> Objects.requireNonNull(safeSourcePalette.valueFor(unpackedIndices[index]), "sourcePalette.valueFor(...)"),
+                safeUnpackedIndices.length,
+                index -> Objects.requireNonNull(safeSourcePalette.valueFor(safeUnpackedIndices[index]), "sourcePalette.valueFor(...)"),
                 safePalette,
                 solidOut,
                 safeScratch
             );
         }
-        safeStorage.unpack(unpackedIndices);
         return readLocalPaletteStates(
-            safeSourcePalette.getSize(),
-            index -> Objects.requireNonNull(safeSourcePalette.valueFor(index), "sourcePalette.valueFor(...)"),
-            unpackedIndices,
+            paletteSize,
+            safePaletteEntryResolver,
+            safeUnpackedIndices,
             safePalette,
             solidOut,
             safeScratch
@@ -2333,17 +2378,22 @@ public final class FakeOreService {
             }
             return remapped;
         }
-        return remapDensePaletteIndices(source.states(), targetPaletteEntries);
+        return remapDensePaletteIndices(source::stateAt, source.stateCount(), targetPaletteEntries);
+    }
+
+    static int[] remapDensePaletteIndices(IntFunction<BlockState> states, int stateCount, List<? extends BlockState> targetPaletteEntries) {
+        IntFunction<BlockState> safeStates = Objects.requireNonNull(states, "states");
+        List<? extends BlockState> safeTargetPaletteEntries = Objects.requireNonNull(targetPaletteEntries, "targetPaletteEntries");
+        int[] remapped = new int[stateCount];
+        for (int i = 0; i < stateCount; i++) {
+            remapped[i] = indexOfState(safeTargetPaletteEntries, Objects.requireNonNull(safeStates.apply(i), "states[" + i + "]"));
+        }
+        return remapped;
     }
 
     static int[] remapDensePaletteIndices(BlockState[] states, List<? extends BlockState> targetPaletteEntries) {
         BlockState[] safeStates = Objects.requireNonNull(states, "states");
-        List<? extends BlockState> safeTargetPaletteEntries = Objects.requireNonNull(targetPaletteEntries, "targetPaletteEntries");
-        int[] remapped = new int[safeStates.length];
-        for (int i = 0; i < safeStates.length; i++) {
-            remapped[i] = indexOfState(safeTargetPaletteEntries, Objects.requireNonNull(safeStates[i], "states[" + i + "]"));
-        }
-        return remapped;
+        return remapDensePaletteIndices(index -> safeStates[index], safeStates.length, targetPaletteEntries);
     }
 
     private int resolveTargetPaletteId(List<BlockState> targetPaletteEntries, int targetBits, BlockState state) {
@@ -2884,6 +2934,7 @@ public final class FakeOreService {
         boolean asyncChunkRewrite,
         int asyncWorkerThreads,
         int asyncQueueSize,
+        int asyncCapacity,
         Map<String, DimensionSummary> dimensionSummaries,
         int globalHiddenCount,
         int globalReplacementCount
@@ -2904,6 +2955,7 @@ public final class FakeOreService {
             + ", async-chunk-rewrite=" + asyncChunkRewrite
             + ", async-worker-threads=" + asyncWorkerThreads
             + ", async-queue-size=" + asyncQueueSize
+            + ", async-capacity=" + asyncCapacity
             + ", dimensions=" + dimensionJoiner
             + ", global-hidden=" + globalHiddenCount
             + ", global-replacement=" + globalReplacementCount;
@@ -3392,7 +3444,6 @@ public final class FakeOreService {
 
     private record SectionSnapshot(
         int sectionY,
-        BlockState[] states,
         int packetOffset,
         int serializedSize,
         int blockStateBits,
@@ -3402,8 +3453,15 @@ public final class FakeOreService {
         BlockState[] paletteEntries,
         int[] unpackedIndices
     ) {
+        private int stateCount() {
+            return unpackedIndices.length;
+        }
+
         private BlockState stateAt(int index) {
-            return Objects.requireNonNull(states[index], "states[" + index + "]");
+            if (globalPalette) {
+                return Objects.requireNonNull(Block.BLOCK_STATE_REGISTRY.byId(unpackedIndices[index]), "states[" + index + "]");
+            }
+            return Objects.requireNonNull(paletteEntries[unpackedIndices[index]], "states[" + index + "]");
         }
 
         private int findPaletteId(BlockState state) {
