@@ -1625,6 +1625,31 @@ public final class FakeOreService {
         return visibility.visibility().isExposed(lx, ly, lz);
     }
 
+    static boolean debugReadSectionPaletteHasTargetForTest(LevelChunkSection section, List<String> hiddenIds, List<String> replacementIds) {
+        FakeOreService service = new FakeOreService();
+        Palette palette = service.buildPalette(
+            true,
+            2,
+            64,
+            true,
+            true,
+            true,
+            false,
+            false,
+            "paper.antixray.bypass",
+            2,
+            1,
+            8192,
+            hiddenIds,
+            replacementIds
+        );
+        return service.readSectionPalette(
+            Objects.requireNonNull(section, "section"),
+            palette,
+            new boolean[4096]
+        ).hasTarget();
+    }
+
     private boolean isExposed(ServerLevel level, BlockPos pos, VisibilityBuildResult visibilityBuild) {
         if (visibilityBuild == null) {
             return isExposed(level, pos);
@@ -2073,7 +2098,7 @@ public final class FakeOreService {
             storageAccess.storage().unpack(unpacked);
             return readSectionPalette(
                 storageAccess.palette(),
-                unpacked.length,
+                storageAccess.palette().getSize(),
                 index -> Objects.requireNonNull(storageAccess.palette().valueFor(index), "sourcePalette.valueFor(...)"),
                 unpacked,
                 palette,

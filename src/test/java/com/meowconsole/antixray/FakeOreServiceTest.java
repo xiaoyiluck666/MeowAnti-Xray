@@ -5,8 +5,12 @@ import it.unimi.dsi.fastutil.shorts.ShortOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.SharedConstants;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.PalettedContainer;
+import net.minecraft.world.level.chunk.Strategy;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -225,6 +229,36 @@ class FakeOreServiceTest {
         states[blockIndex(8, 8, 8)] = Blocks.DIAMOND_ORE.defaultBlockState();
 
         assertFalse(FakeOreService.debugSyntheticSectionExposedForTest(states, 8, 8, 8, false));
+    }
+
+    @Test
+    void liveLocalPaletteReadUsesPaletteSizeInsteadOfBlockCount() {
+        PalettedContainer<BlockState> states = new PalettedContainer<>(
+            Blocks.STONE.defaultBlockState(),
+            Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY)
+        );
+        LevelChunkSection section = new LevelChunkSection(states, null);
+        BlockState[] paletteStates = {
+            Blocks.STONE.defaultBlockState(),
+            Blocks.DIRT.defaultBlockState(),
+            Blocks.GRANITE.defaultBlockState(),
+            Blocks.DIORITE.defaultBlockState(),
+            Blocks.ANDESITE.defaultBlockState(),
+            Blocks.TUFF.defaultBlockState(),
+            Blocks.COPPER_ORE.defaultBlockState(),
+            Blocks.COAL_ORE.defaultBlockState(),
+            Blocks.REDSTONE_ORE.defaultBlockState(),
+            Blocks.DIAMOND_ORE.defaultBlockState()
+        };
+        for (int i = 0; i < paletteStates.length; i++) {
+            section.setBlockState(i, 0, 0, paletteStates[i], false);
+        }
+
+        assertTrue(FakeOreService.debugReadSectionPaletteHasTargetForTest(
+            section,
+            List.of("minecraft:diamond_ore"),
+            List.of("minecraft:stone")
+        ));
     }
 
     @Test
