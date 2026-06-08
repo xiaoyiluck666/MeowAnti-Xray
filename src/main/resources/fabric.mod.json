@@ -16,7 +16,7 @@
   "environment": "server",
   "entrypoints": {
     "main": [
-      "com.meowconsole.fabric.MeowConsoleFabricMod"
+      "com.meowantixray.fabric.MeowAntiXrayFabricMod"
     ]
   },
   "mixins": [

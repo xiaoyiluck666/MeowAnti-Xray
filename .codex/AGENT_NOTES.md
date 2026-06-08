@@ -1,7 +1,6 @@
 # Agent Notes
 
 - 2026-04-27：从 `E:\Code2026\fabricmod\meowconsole` 白名单复制出本地新项目 `E:\Code2026\fabricmod\MeowAnti-Xray`。
-- 本次拆分先保留 `com.meowconsole` 包名，优先完成可构建的功能拆分；包名迁移可作为后续独立重构。
 - 用户明确要求后续两个项目分线程维护；本项目只承接反矿透相关工作。
 - 本地 Git 已初始化并提交首版：`596509b Initial Meow Anti-Xray split`。
 - 2026-05-19 性能测试备注：NeoForge `neoforge/run/server.properties` 为本地压测开启了 `enable-rcon=true`、`rcon.password=meow-local-rcon-20260519`、`pause-when-empty-seconds=0`、`view-distance=12`、`simulation-distance=8`；`neoforge/run/mods` 放入了 `spark-1.10.172-neoforge.jar` 与当前 `meowantixray-neoforge-1.2.4.jar`。Windows 上 spark 自动使用 built-in Java profiler。真实玩家 bot 尝试失败：`minecraft-protocol` 无 `26.1.2` 数据。

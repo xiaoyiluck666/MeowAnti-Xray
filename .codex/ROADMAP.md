@@ -1,62 +1,57 @@
 # Meow Anti-Xray Roadmap
 
-Last updated: 2026-06-02
+Last updated: 2026-06-06
 
 ## Current State
 
-- Latest published version: `1.0.2`.
+- Latest published version: `1.1.1`.
+- Current local release candidate: none.
 - Modrinth project: `meowanti-xray` / project id `8pl8obwY`.
 - Latest Modrinth versions:
-  - Fabric: `1.0.2+fabric`, version id `z8PGUT9X`.
-  - NeoForge: `1.0.2+neoforge`, version id `vmQINJlp`.
+  - Fabric: `1.1.1+fabric`, version id `u02Xc7ol`.
+  - NeoForge: `1.1.1+neoforge`, version id `bJBqlAOa`.
 - Current Minecraft target: `26.1.2`; published compatibility range is `26.1`, `26.1.1`, `26.1.2`.
 - Current Java target: `25`.
-- Current package name is still `com.meowconsole`; this is intentional for now.
+- Current package name: `com.meowantixray`.
 
 ## Recently Completed
 
 - `1.0.1`: runtime diagnostics, `/antixray profile` async pressure metrics, sync chunk send counters, and snapshot allocation reduction.
 - `1.0.2`: Paper engine mode 1 natural replacement parity and Fabric local palette crash fix.
-- Fabric 8 fake network player run passed after the 1.0.2 fix: `91s`, `15833` chunks, `173.94 chunks/s`, `0` client errors.
-- NeoForge 8 fake network player stress data exists from earlier runs; conservative default queue remains `async-queue-size=16`.
+- `1.1.0` local release candidate: package, entrypoint, mixin plugin, and command class identity migrated from MeowConsole naming to Meow Anti-Xray naming; mod id and config path unchanged.
+- Post-rename local optimization: Paper parity target lookup now follows actual obfuscation targets for mode 1/2/3, replacement pass checks reuse static arrays, and `/antixray profile` reports async pressure plus sync fallback ratio.
+- Fabric 1.1.0 startup + spark run passed: `91s`, 8/8 fake clients, `28766` chunks, `316.01 chunks/s`, `0` errors, profile rewrite avg `2.662ms`, sync fallback `43.0%`, spark `https://spark.lucko.me/A9EOkRRmFJ`.
+- NeoForge 1.1.0 clean startup + spark run passed: `91s`, 8/8 fake clients, `29699` chunks, `326.29 chunks/s`, `0` errors, profile rewrite avg `2.893ms`, sync fallback `38.2%`, spark `https://spark.lucko.me/emnV8jJ4yG`.
+- `1.1.0` published to Modrinth as separate listed versions: Fabric `RBQd8pvr` and NeoForge `k257upBH`.
+- `1.1.1`: Fabric + Polymer compatibility fix for missing chunk packet context warning; published to Modrinth as Fabric `u02Xc7ol` and NeoForge `bJBqlAOa`.
 
 ## Next Patch Candidates
 
-These are suitable for `1.0.3` or another small maintenance release if the change stays narrow.
+These are suitable for `1.1.1` or another small maintenance release if the change stays narrow.
 
 1. Improve release automation safety.
-   - Add a small local release helper script that builds, checks jar metadata, lists target Modrinth version numbers, and refuses to upload if the version already exists.
+   - Release helper added at `tools/publish-modrinth.ps1`; future polish can add checksum display or automatic post-upload `.codex` release record snippets.
    - Do not store Modrinth tokens in repo or `.codex`.
    - Continue publishing separate `x.y.z+fabric` and `x.y.z+neoforge` Modrinth versions.
 
-2. Fabric profiling follow-up.
-   - Optional spark report for Fabric 8 fake network player run.
-   - Current Fabric 8-player runner result has no spark link, only runner metrics.
-   - Capture profile only if useful for public release notes or performance comparison.
-
-3. Profile output polish.
-   - Consider adding sync fallback ratio or clearer pressure status to `/antixray profile`.
-   - Keep output compact enough for in-game chat.
-
-4. Update checker UX polish.
+2. Update checker UX polish.
    - Verify admin notification format after `1.0.2`.
-   - Confirm update checker treats `1.0.2+fabric` / `1.0.2+neoforge` as equivalent to local `1.0.2`.
+   - Confirm update checker treats `1.1.0+fabric` / `1.1.0+neoforge` as equivalent to local `1.1.0`.
 
-## 1.1.0 Candidates
+3. Fabric Polymer compatibility follow-up.
+   - Issue #1 was fixed and published in `1.1.1`.
+   - Consider closing the GitHub issue after the reporter confirms the Modrinth build works on their server.
+
+## 1.2.0 Candidates
 
 These are broader and should not be mixed into a patch release unless there is a strong reason.
 
-1. Package rename from `com.meowconsole` to `com.meowantixray`.
-   - User impact should be low if mod id, config path, metadata, and behavior stay unchanged.
-   - Risk is developer-side: entrypoints, mixin JSON, tests, reflection helpers, launch configs, and crash-log continuity.
-   - Treat as an internal identity cleanup release, likely `1.1.0`.
-
-2. Platform abstraction cleanup.
+1. Platform abstraction cleanup.
    - Review Fabric and NeoForge entrypoints, permission bridges, and command registration.
    - Reduce duplicate loader-specific code only where it clearly lowers maintenance cost.
 
-3. Public documentation refresh.
-   - Update README / Modrinth intro if package rename or new profiling data changes the story.
+2. Public documentation refresh.
+   - Update README / Modrinth intro if new profiling data changes the story.
    - Keep Fabric and NeoForge installation guidance explicit so users do not assume one jar supports both loaders.
 
 ## Watch List
@@ -66,7 +61,7 @@ These are broader and should not be mixed into a patch release unless there is a
   - Published NeoForge Minecraft range is `[26.1,26.1.3)` in metadata.
 - Paper anti-xray implementation changes.
   - Paper can rewrite packet buffers in the native serialization path; this mod must snapshot enough state at the mod layer, so exact implementation parity is not expected.
-  - Last checked Paper `main`: `10a73fe40f39d51e6a35e55154229bc9508a16d1` on 2026-06-02.
+  - Last checked Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6` on 2026-06-06.
   - Paper default hidden/replacement fields were unchanged at that HEAD.
   - This project intentionally includes extra default hidden blocks for Nether protection: `ancient_debris`, `nether_quartz_ore`, `nether_gold_ore`.
 - Async queue defaults.
