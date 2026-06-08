@@ -300,17 +300,17 @@ public final class FakeOreConfig {
 
             if (indent == 4) {
                 if ("global-hidden".equals(section) && line.startsWith("- ")) {
-                    hiddenBlocks.add(line.substring(2).trim());
+                    hiddenBlocks.add(parseString(line.substring(2), ""));
                     continue;
                 }
                 if ("global-replacement".equals(section) && line.startsWith("- ")) {
-                    replacementBlocks.add(line.substring(2).trim());
+                    replacementBlocks.add(parseString(line.substring(2), ""));
                     continue;
                 }
 
                 if ("dimensions".equals(section)) {
                     if (line.endsWith(":")) {
-                        currentDim = normalizeDimensionKey(line.substring(0, line.length() - 1).trim());
+                        currentDim = normalizeDimensionKey(line.substring(0, line.length() - 1));
                         dimensionSettings.putIfAbsent(currentDim, new DimensionSettings());
                         currentList = "";
                     }
@@ -337,7 +337,7 @@ public final class FakeOreConfig {
 
             if (indent >= 8 && currentDim != null && line.startsWith("- ")) {
                 DimensionSettings ds = dimensionSettings.get(currentDim);
-                String item = line.substring(2).trim();
+                String item = parseString(line.substring(2), "");
                 if ("dim-hidden".equals(currentList)) {
                     ds.hiddenBlocks.add(item);
                 } else if ("dim-replacement".equals(currentList)) {
@@ -442,8 +442,8 @@ public final class FakeOreConfig {
             return List.of();
         }
         List<String> out = new ArrayList<>();
-        for (String part : body.split(",")) {
-            String s = part.trim();
+        for (String part : splitInlineList(body)) {
+            String s = parseString(part, "");
             if (!s.isEmpty()) {
                 out.add(s);
             }
@@ -452,10 +452,11 @@ public final class FakeOreConfig {
     }
 
     private boolean parseBoolean(String value, boolean fallback) {
-        if ("true".equalsIgnoreCase(value)) {
+        String parsed = stripYamlQuotes(value.trim());
+        if ("true".equalsIgnoreCase(parsed)) {
             return true;
         }
-        if ("false".equalsIgnoreCase(value)) {
+        if ("false".equalsIgnoreCase(parsed)) {
             return false;
         }
         return fallback;
@@ -463,7 +464,7 @@ public final class FakeOreConfig {
 
     private int parseInt(String value, int min, int max, int fallback) {
         try {
-            int parsed = Integer.parseInt(value);
+            int parsed = Integer.parseInt(stripYamlQuotes(value.trim()));
             return Math.max(min, Math.min(max, parsed));
         } catch (NumberFormatException ignored) {
             return fallback;
@@ -471,7 +472,7 @@ public final class FakeOreConfig {
     }
 
     private String parseString(String value, String fallback) {
-        String parsed = value == null ? "" : value.trim();
+        String parsed = value == null ? "" : stripYamlQuotes(value.trim());
         return parsed.isEmpty() ? fallback : parsed;
     }
 
@@ -484,9 +485,18 @@ public final class FakeOreConfig {
     }
 
     private String stripComment(String line) {
-        int hash = line.indexOf('#');
-        if (hash >= 0) {
-            return line.substring(0, hash);
+        char quote = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if ((c == '"' || c == '\'') && (i == 0 || line.charAt(i - 1) != '\\')) {
+                if (quote == 0) {
+                    quote = c;
+                } else if (quote == c) {
+                    quote = 0;
+                }
+            } else if (c == '#' && quote == 0) {
+                return line.substring(0, i);
+            }
         }
         return line;
     }
@@ -500,7 +510,7 @@ public final class FakeOreConfig {
     }
 
     private String normalizeDimensionKey(String raw) {
-        String key = raw.toLowerCase(Locale.ROOT);
+        String key = stripYamlQuotes(raw.trim()).toLowerCase(Locale.ROOT);
         return switch (key) {
             case "overworld", "minecraft:overworld" -> "minecraft:overworld";
             case "nether", "the_nether", "minecraft:the_nether" -> "minecraft:the_nether";
@@ -519,6 +529,8 @@ public final class FakeOreConfig {
     private List<String> renderConfigLines() {
         List<String> lines = new ArrayList<>();
         lines.add("# Paper-like anti-xray config for Meow Anti-Xray");
+        lines.add("# Existing config files are supplemented with new missing keys without overwriting your values.");
+        lines.add("# Quoted YAML scalars, quoted list items, and inline lists are supported.");
         lines.add("anti-xray:");
         lines.addAll(renderMissingGlobalScalarLines(Set.of()));
         lines.addAll(renderGlobalListSection("hidden-blocks", hiddenBlocks));
@@ -694,9 +706,45 @@ public final class FakeOreConfig {
 
     private String sectionNameOf(String line) {
         if (line.endsWith(":")) {
-            return line.substring(0, line.length() - 1).trim();
+            return stripYamlQuotes(line.substring(0, line.length() - 1).trim());
         }
         return keyOf(line);
+    }
+
+    private List<String> splitInlineList(String body) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        char quote = 0;
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if ((c == '"' || c == '\'') && (i == 0 || body.charAt(i - 1) != '\\')) {
+                if (quote == 0) {
+                    quote = c;
+                } else if (quote == c) {
+                    quote = 0;
+                }
+                current.append(c);
+            } else if (c == ',' && quote == 0) {
+                parts.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        parts.add(current.toString());
+        return parts;
+    }
+
+    private String stripYamlQuotes(String value) {
+        if (value.length() < 2) {
+            return value;
+        }
+        char first = value.charAt(0);
+        char last = value.charAt(value.length() - 1);
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+            return value.substring(1, value.length() - 1).replace("\\" + first, String.valueOf(first));
+        }
+        return value;
     }
 
     private void writeLines(Path path, List<String> lines) throws IOException {

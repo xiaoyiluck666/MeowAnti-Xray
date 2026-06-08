@@ -80,6 +80,26 @@ config/meowantixray.yml
 4. 根据服务器类型调整隐藏方块、替换方块、高度范围和异步参数。
 5. 使用 `/antixray reload` 重载配置，使用 `/antixray status` 与 `/antixray profile` 检查运行状态。
 
+常用配置示例：
+
+```yml
+anti-xray:
+  engine-mode: 2
+  max-block-height: 64
+  hidden-blocks: ["minecraft:diamond_ore", "minecraft:deepslate_diamond_ore"]
+  replacement-blocks:
+    - minecraft:stone
+    - minecraft:deepslate
+  dimension-settings:
+    nether:
+      hidden-blocks:
+        - minecraft:ancient_debris
+      replacement-blocks:
+        - minecraft:netherrack
+```
+
+旧配置加载时会自动补齐新增但缺失的键，不会覆盖你已经写好的值。配置支持带引号的值、带引号的列表项、内联列表，以及 `nether` / `end` 这类维度别名。
+
 ## 🧰 常用命令
 
 ```text

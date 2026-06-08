@@ -1,15 +1,15 @@
 # Meow Anti-Xray Roadmap
 
-Last updated: 2026-06-06
+Last updated: 2026-06-08
 
 ## Current State
 
-- Latest published version: `1.1.1`.
+- Latest published version: `1.2.0`.
 - Current local release candidate: none.
 - Modrinth project: `meowanti-xray` / project id `8pl8obwY`.
 - Latest Modrinth versions:
-  - Fabric: `1.1.1+fabric`, version id `u02Xc7ol`.
-  - NeoForge: `1.1.1+neoforge`, version id `bJBqlAOa`.
+  - Fabric: `1.2.0+fabric`, version id `ZYvAlFb3`.
+  - NeoForge: `1.2.0+neoforge`, version id `8nPHUeNS`.
 - Current Minecraft target: `26.1.2`; published compatibility range is `26.1`, `26.1.1`, `26.1.2`.
 - Current Java target: `25`.
 - Current package name: `com.meowantixray`.
@@ -24,33 +24,44 @@ Last updated: 2026-06-06
 - NeoForge 1.1.0 clean startup + spark run passed: `91s`, 8/8 fake clients, `29699` chunks, `326.29 chunks/s`, `0` errors, profile rewrite avg `2.893ms`, sync fallback `38.2%`, spark `https://spark.lucko.me/emnV8jJ4yG`.
 - `1.1.0` published to Modrinth as separate listed versions: Fabric `RBQd8pvr` and NeoForge `k257upBH`.
 - `1.1.1`: Fabric + Polymer compatibility fix for missing chunk packet context warning; published to Modrinth as Fabric `u02Xc7ol` and NeoForge `bJBqlAOa`.
+- `1.2.0` candidate started: config parser now accepts quoted YAML scalar values, quoted inline list entries, quoted list items, quoted dimension aliases, and `#` inside quoted strings. README and Modrinth intro docs now include a compact per-dimension config example and upgrade compatibility note.
+- `1.2.0` release prep started: `mod_version=1.2.0`, `CHANGELOG.md`, `changelogs/1.2.0.zh-CN.md`, and `changelogs/1.2.0.en-US.md` are prepared.
+- `1.2.0` published to Modrinth as separate listed versions: Fabric `ZYvAlFb3` and NeoForge `8nPHUeNS`.
 
-## Next Patch Candidates
+## Post-1.1.1 Developer Maintenance
 
-These are suitable for `1.1.1` or another small maintenance release if the change stays narrow.
+These items are developer-side maintenance only. Do not bump `mod_version` or add user-facing changelogs unless runtime code, config behavior, compatibility, or packaged artifacts change.
 
 1. Improve release automation safety.
-   - Release helper added at `tools/publish-modrinth.ps1`; future polish can add checksum display or automatic post-upload `.codex` release record snippets.
+   - Release helper added at `tools/publish-modrinth.ps1`; it prints jar metadata, SHA512/SHA1 checksums, duplicate Modrinth version details, and a post-upload `.codex` release record snippet.
    - Do not store Modrinth tokens in repo or `.codex`.
    - Continue publishing separate `x.y.z+fabric` and `x.y.z+neoforge` Modrinth versions.
 
 2. Update checker UX polish.
-   - Verify admin notification format after `1.0.2`.
-   - Confirm update checker treats `1.1.0+fabric` / `1.1.0+neoforge` as equivalent to local `1.1.0`.
+   - Unit coverage confirms `1.1.1+fabric` / `1.1.1+neoforge` compare equal to local `1.1.1`.
+   - Keep this as test/verification work unless the in-game message behavior changes.
 
 3. Fabric Polymer compatibility follow-up.
    - Issue #1 was fixed and published in `1.1.1`.
-   - Consider closing the GitHub issue after the reporter confirms the Modrinth build works on their server.
+   - Issue #1 is closed; keep a watch item for future Polymer / Fabric API packet context behavior changes.
+
+4. Roadmap hygiene.
+   - Keep completed release items out of patch candidates so internal maintenance is not mistaken for a user-facing version plan.
 
 ## 1.2.0 Candidates
 
 These are broader and should not be mixed into a patch release unless there is a strong reason.
 
-1. Platform abstraction cleanup.
+1. Config compatibility and upgrade polish.
+   - Done: quoted YAML scalar/list/dimension parsing compatibility.
+   - Done: generated config header and public docs explain missing-key supplementation and supported quoted/inline YAML forms.
+   - Done: Fabric and NeoForge real dev-server `/antixray status` + `/antixray reload` smoke passed.
+
+2. Platform abstraction cleanup.
    - Review Fabric and NeoForge entrypoints, permission bridges, and command registration.
    - Reduce duplicate loader-specific code only where it clearly lowers maintenance cost.
 
-2. Public documentation refresh.
+3. Public documentation refresh.
    - Update README / Modrinth intro if new profiling data changes the story.
    - Keep Fabric and NeoForge installation guidance explicit so users do not assume one jar supports both loaders.
 

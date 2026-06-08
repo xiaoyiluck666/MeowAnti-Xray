@@ -186,6 +186,8 @@ class FakeOreConfigTest {
         String generated = Files.readString(path, StandardCharsets.UTF_8);
 
         assertEquals("paper.antixray.bypass", config.bypassPermission);
+        assertTrue(generated.contains("# Existing config files are supplemented with new missing keys without overwriting your values."));
+        assertTrue(generated.contains("# Quoted YAML scalars, quoted list items, and inline lists are supported."));
         assertTrue(generated.contains("  bypass-permission: paper.antixray.bypass"));
         assertTrue(generated.contains("    - minecraft:raw_copper_block"));
         assertTrue(generated.contains("    - minecraft:raw_iron_block"));
@@ -248,6 +250,43 @@ class FakeOreConfigTest {
         assertFalse(config.asyncChunkRewrite);
         assertEquals(4, config.asyncWorkerThreads);
         assertEquals(0, config.asyncQueueSize);
+    }
+
+    @Test
+    void loadOrCreateAcceptsQuotedYamlScalarsAndInlineLists(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("meowantixray.yml");
+        String original = """
+            anti-xray:
+              enabled: "false"
+              engine-mode: '3'
+              bypass-permission: "custom.antixray#bypass"
+              hidden-blocks: ["minecraft:diamond_ore", 'minecraft:deepslate_diamond_ore']
+              replacement-blocks: ['minecraft:stone', "minecraft:deepslate"]
+              dimension-settings:
+                "nether":
+                  enabled: 'true'
+                  bypass-permission: 'custom.nether#bypass'
+                  hidden-blocks:
+                    - "minecraft:ancient_debris"
+                  replacement-blocks:
+                    - 'minecraft:netherrack'
+            """;
+        Files.writeString(path, original, StandardCharsets.UTF_8);
+
+        FakeOreConfig config = FakeOreConfig.loadOrCreate(path);
+
+        assertFalse(config.enabled);
+        assertEquals(3, config.engineMode);
+        assertEquals("custom.antixray#bypass", config.bypassPermission);
+        assertEquals(List.of("minecraft:diamond_ore", "minecraft:deepslate_diamond_ore"), config.hiddenBlocks);
+        assertEquals(List.of("minecraft:stone", "minecraft:deepslate"), config.replacementBlocks);
+
+        FakeOreConfig.DimensionSettings nether = config.dimensionSettings.get("minecraft:the_nether");
+        assertNotNull(nether);
+        assertTrue(nether.enabled);
+        assertEquals("custom.nether#bypass", nether.bypassPermission);
+        assertEquals(List.of("minecraft:ancient_debris"), nether.hiddenBlocks);
+        assertEquals(List.of("minecraft:netherrack"), nether.replacementBlocks);
     }
 }
 

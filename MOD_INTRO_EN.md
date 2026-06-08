@@ -80,6 +80,26 @@ config/meowantixray.yml
 4. Tune hidden blocks, replacement blocks, height ranges, and async settings for your server.
 5. Use `/antixray reload` to reload the config, then check `/antixray status` and `/antixray profile`.
 
+Common config example:
+
+```yml
+anti-xray:
+  engine-mode: 2
+  max-block-height: 64
+  hidden-blocks: ["minecraft:diamond_ore", "minecraft:deepslate_diamond_ore"]
+  replacement-blocks:
+    - minecraft:stone
+    - minecraft:deepslate
+  dimension-settings:
+    nether:
+      hidden-blocks:
+        - minecraft:ancient_debris
+      replacement-blocks:
+        - minecraft:netherrack
+```
+
+Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported.
+
 ## 🧰 Commands
 
 ```text

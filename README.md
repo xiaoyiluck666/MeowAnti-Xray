@@ -19,6 +19,26 @@ The default config is generated at:
 config/meowantixray.yml
 ```
 
+Example:
+
+```yml
+anti-xray:
+  engine-mode: 2
+  max-block-height: 64
+  hidden-blocks: ["minecraft:diamond_ore", "minecraft:deepslate_diamond_ore"]
+  replacement-blocks:
+    - minecraft:stone
+    - minecraft:deepslate
+  dimension-settings:
+    nether:
+      hidden-blocks:
+        - minecraft:ancient_debris
+      replacement-blocks:
+        - minecraft:netherrack
+```
+
+Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted YAML values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported.
+
 ## Build
 
 ```powershell

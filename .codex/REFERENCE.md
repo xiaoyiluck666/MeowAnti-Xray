@@ -26,5 +26,5 @@
 - NeoForge 构建与测试：`.\gradlew.bat :neoforge:build`
 - 全量单测：`.\gradlew.bat test :neoforge:test`
 - 发布构建：`.\gradlew.bat clean test :neoforge:test releaseAllLoaders --console=plain`
-- Modrinth 发布检查/上传：`.\tools\publish-modrinth.ps1` 默认 dry-run；确认无误后用 `.\tools\publish-modrinth.ps1 -Upload`。脚本读取 `MODRINTH_TOKEN` 或 `MODRINTH_API_TOKEN`，会拒绝上传已存在的 `<version>+fabric` / `<version>+neoforge`。
+- Modrinth 发布检查/上传：`.\tools\publish-modrinth.ps1` 默认 dry-run；确认无误后用 `.\tools\publish-modrinth.ps1 -Upload`。脚本读取 `MODRINTH_TOKEN` 或 `MODRINTH_API_TOKEN`，会拒绝上传已存在的 `<version>+fabric` / `<version>+neoforge`，并输出 jar metadata、SHA512/SHA1、重复版本详情和发布后的 `.codex` 记录片段。
 - Minecraft 26.1.2 网络假玩家压测：`node tools\mc-2612-load-runner.js --clients 8 --duration 90 --rcon-teleport --rcon-password meow-local-rcon-20260519 --gamemode spectator --teleport-y 180 --teleport-interval 3000 --teleport-step 256 --connect-delay 400`。该工具不依赖 Carpet / mineflayer / minecraft-protocol，直接实现 protocol `775` 的登录、configuration、play、keepalive、teleport ack、chunk batch ack 子集；需要服务端 `online-mode=false`，RCON 仅用于可选 `/tp` 跑图，`--gamemode spectator` 用于避免高空跑图触发原版飞行检测。

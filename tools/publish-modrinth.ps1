@@ -168,6 +168,18 @@ function Assert-NeoForgeJar {
     }
 }
 
+function Get-JarChecksums {
+    param([string] $JarPath)
+
+    $file = Get-Item -LiteralPath $JarPath
+    return [pscustomobject]@{
+        File = $file.Name
+        SizeBytes = $file.Length
+        Sha512 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA512).Hash.ToLowerInvariant()
+        Sha1 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA1).Hash.ToLowerInvariant()
+    }
+}
+
 function Get-ModrinthVersions {
     param([string] $Slug)
 
@@ -227,6 +239,20 @@ function Invoke-ModrinthUpload {
     }
 }
 
+function Write-ReleaseRecordSnippet {
+    param(
+        [string] $Version,
+        [object] $FabricResult,
+        [object] $NeoForgeResult
+    )
+
+    $fabricFile = ($FabricResult.files | Select-Object -First 1).filename
+    $neoforgeFile = ($NeoForgeResult.files | Select-Object -First 1).filename
+    Write-Host ""
+    Write-Host ".codex PROJECT_CONTEXT release record snippet:"
+    Write-Host "- $(Get-Date -Format 'yyyy-MM-dd')：完成 $Version 发布到 Modrinth。线上新增独立版本 ``$($FabricResult.version_number)``（version id ``$($FabricResult.id)``，文件 ``$fabricFile``，依赖 Fabric API）和 ``$($NeoForgeResult.version_number)``（version id ``$($NeoForgeResult.id)``，文件 ``$neoforgeFile``），均为 ``listed``，MC 兼容 ``$($GameVersions -join '``、``')``。"
+}
+
 $root = Get-RepoRoot
 $properties = Read-GradleProperties -Path (Join-Path $root "gradle.properties")
 if ([string]::IsNullOrWhiteSpace($Version)) {
@@ -258,6 +284,13 @@ $fabricMetadata = Assert-FabricJar -JarPath $fabricJar -ExpectedVersion $Version
 $neoforgeMetadata = Assert-NeoForgeJar -JarPath $neoforgeJar -ExpectedVersion $Version
 Write-Host "Jar metadata checks passed:"
 @($fabricMetadata, $neoforgeMetadata) | Format-Table -AutoSize | Out-String | Write-Host
+
+$jarChecksums = @(
+    Get-JarChecksums -JarPath $fabricJar
+    Get-JarChecksums -JarPath $neoforgeJar
+)
+Write-Host "Jar checksums:"
+$jarChecksums | Format-List | Out-String | Write-Host
 
 $zhPath = Join-Path $root "changelogs\$Version.zh-CN.md"
 $enPath = Join-Path $root "changelogs\$Version.en-US.md"
@@ -296,6 +329,15 @@ Write-Host "Modrinth release plan:"
 
 if ($duplicates.Count -gt 0) {
     $message = "Modrinth already has version(s): $($duplicates -join ', ')"
+    $existingVersions | Where-Object { $duplicates -contains $_.version_number } | ForEach-Object {
+        [pscustomobject]@{
+            Version = $_.version_number
+            Id = $_.id
+            Status = $_.status
+            Loaders = ($_.loaders -join ",")
+            Files = ($_.files.filename -join ",")
+        }
+    } | Format-Table -AutoSize | Out-String | Write-Host
     if ($Upload) {
         throw $message
     }
@@ -329,3 +371,5 @@ Write-Host "Uploaded Modrinth versions:"
         Files = ($_.files.filename -join ",")
     }
 } | Format-Table -AutoSize | Out-String | Write-Host
+
+Write-ReleaseRecordSnippet -Version $Version -FabricResult $fabricResult -NeoForgeResult $neoforgeResult

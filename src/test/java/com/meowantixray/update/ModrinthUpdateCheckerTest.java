@@ -10,6 +10,9 @@ final class ModrinthUpdateCheckerTest {
     void compareVersionsIgnoresLoaderBuildMetadata() {
         assertEquals(0, ModrinthUpdateChecker.compareVersions("1.0.0+fabric", "1.0.0"));
         assertEquals(0, ModrinthUpdateChecker.compareVersions("1.0.0+neoforge", "1.0.0"));
+        assertEquals(0, ModrinthUpdateChecker.compareVersions("1.1.1+fabric", "1.1.1"));
+        assertEquals(0, ModrinthUpdateChecker.compareVersions("1.1.1+neoforge", "1.1.1"));
+        assertEquals(0, ModrinthUpdateChecker.compareVersions("1.1.1", "1.1.1+fabric"));
     }
 
     @Test
