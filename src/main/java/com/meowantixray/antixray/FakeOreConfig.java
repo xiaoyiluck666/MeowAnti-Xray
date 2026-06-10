@@ -262,6 +262,8 @@ public final class FakeOreConfig {
         String section = "";
         String currentDim = null;
         String currentList = "";
+        boolean globalHiddenBlocksSpecified = false;
+        boolean globalReplacementBlocksSpecified = false;
 
         for (String rawLine : lines) {
             String lineNoComment = stripComment(rawLine);
@@ -280,11 +282,13 @@ public final class FakeOreConfig {
                 currentList = "";
                 if ("hidden-blocks:".equals(line)) {
                     section = "global-hidden";
+                    globalHiddenBlocksSpecified = true;
                     hiddenBlocks = new ArrayList<>();
                     continue;
                 }
                 if ("replacement-blocks:".equals(line)) {
                     section = "global-replacement";
+                    globalReplacementBlocksSpecified = true;
                     replacementBlocks = new ArrayList<>();
                     continue;
                 }
@@ -294,6 +298,12 @@ public final class FakeOreConfig {
                 }
 
                 section = "global";
+                String scalarKey = keyOf(line);
+                if ("hidden-blocks".equals(scalarKey)) {
+                    globalHiddenBlocksSpecified = true;
+                } else if ("replacement-blocks".equals(scalarKey)) {
+                    globalReplacementBlocksSpecified = true;
+                }
                 applyGlobalScalar(line);
                 continue;
             }
@@ -346,10 +356,10 @@ public final class FakeOreConfig {
             }
         }
 
-        if (hiddenBlocks.isEmpty()) {
+        if (!globalHiddenBlocksSpecified && hiddenBlocks.isEmpty()) {
             hiddenBlocks = defaultHiddenBlocks();
         }
-        if (replacementBlocks.isEmpty()) {
+        if (!globalReplacementBlocksSpecified && replacementBlocks.isEmpty()) {
             replacementBlocks = defaultReplacementBlocks("overworld");
         }
         if (dimensionSettings.isEmpty()) {
@@ -383,13 +393,13 @@ public final class FakeOreConfig {
             case "max-blocks-per-chunk" -> maxBlocksPerChunk = parseInt(value, 64, 262144, maxBlocksPerChunk);
             case "hidden-blocks" -> {
                 List<String> list = parseInlineList(value);
-                if (!list.isEmpty()) {
+                if (list != null) {
                     hiddenBlocks = list;
                 }
             }
             case "replacement-blocks" -> {
                 List<String> list = parseInlineList(value);
-                if (!list.isEmpty()) {
+                if (list != null) {
                     replacementBlocks = list;
                 }
             }
@@ -417,13 +427,13 @@ public final class FakeOreConfig {
             case "bypass-permission" -> ds.bypassPermission = parseString(value, ds.bypassPermission);
             case "hidden-blocks" -> {
                 List<String> list = parseInlineList(value);
-                if (!list.isEmpty()) {
+                if (list != null) {
                     ds.hiddenBlocks = list;
                 }
             }
             case "replacement-blocks" -> {
                 List<String> list = parseInlineList(value);
-                if (!list.isEmpty()) {
+                if (list != null) {
                     ds.replacementBlocks = list;
                 }
             }
@@ -435,7 +445,7 @@ public final class FakeOreConfig {
     private List<String> parseInlineList(String value) {
         String trimmed = value.trim();
         if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
-            return List.of();
+            return null;
         }
         String body = trimmed.substring(1, trimmed.length() - 1).trim();
         if (body.isEmpty()) {

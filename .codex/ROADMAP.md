@@ -1,15 +1,15 @@
 # Meow Anti-Xray Roadmap
 
-Last updated: 2026-06-08
+Last updated: 2026-06-10
 
 ## Current State
 
-- Latest published version: `1.2.0`.
+- Latest published version: `1.2.2`.
 - Current local release candidate: none.
 - Modrinth project: `meowanti-xray` / project id `8pl8obwY`.
 - Latest Modrinth versions:
-  - Fabric: `1.2.0+fabric`, version id `ZYvAlFb3`.
-  - NeoForge: `1.2.0+neoforge`, version id `8nPHUeNS`.
+  - Fabric: `1.2.2+fabric`, version id `Nvxt3UCV`.
+  - NeoForge: `1.2.2+neoforge`, version id `lzz6pViR`.
 - Current Minecraft target: `26.1.2`; published compatibility range is `26.1`, `26.1.1`, `26.1.2`.
 - Current Java target: `25`.
 - Current package name: `com.meowantixray`.
@@ -24,9 +24,9 @@ Last updated: 2026-06-08
 - NeoForge 1.1.0 clean startup + spark run passed: `91s`, 8/8 fake clients, `29699` chunks, `326.29 chunks/s`, `0` errors, profile rewrite avg `2.893ms`, sync fallback `38.2%`, spark `https://spark.lucko.me/emnV8jJ4yG`.
 - `1.1.0` published to Modrinth as separate listed versions: Fabric `RBQd8pvr` and NeoForge `k257upBH`.
 - `1.1.1`: Fabric + Polymer compatibility fix for missing chunk packet context warning; published to Modrinth as Fabric `u02Xc7ol` and NeoForge `bJBqlAOa`.
-- `1.2.0` candidate started: config parser now accepts quoted YAML scalar values, quoted inline list entries, quoted list items, quoted dimension aliases, and `#` inside quoted strings. README and Modrinth intro docs now include a compact per-dimension config example and upgrade compatibility note.
-- `1.2.0` release prep started: `mod_version=1.2.0`, `CHANGELOG.md`, `changelogs/1.2.0.zh-CN.md`, and `changelogs/1.2.0.en-US.md` are prepared.
 - `1.2.0` published to Modrinth as separate listed versions: Fabric `ZYvAlFb3` and NeoForge `8nPHUeNS`.
+- `1.2.1` published to Modrinth as separate listed versions: Fabric `lRWSPdkr` and NeoForge `Mh7pIebp`; added stronger `/antixray status`, `/antixray reload`, and `/antixray inspect` diagnostics plus explicit empty-list config compatibility.
+- `1.2.2` published to Modrinth as separate listed versions: Fabric `Nvxt3UCV` and NeoForge `lzz6pViR`; fixed command output polish for RCON/console and normalized inspect dimension IDs.
 
 ## Post-1.1.1 Developer Maintenance
 
@@ -48,20 +48,24 @@ These items are developer-side maintenance only. Do not bump `mod_version` or ad
 4. Roadmap hygiene.
    - Keep completed release items out of patch candidates so internal maintenance is not mistaken for a user-facing version plan.
 
-## 1.2.0 Candidates
+## Next Iteration Candidates
 
 These are broader and should not be mixed into a patch release unless there is a strong reason.
 
-1. Config compatibility and upgrade polish.
-   - Done: quoted YAML scalar/list/dimension parsing compatibility.
-   - Done: generated config header and public docs explain missing-key supplementation and supported quoted/inline YAML forms.
-   - Done: Fabric and NeoForge real dev-server `/antixray status` + `/antixray reload` smoke passed.
-
-2. Platform abstraction cleanup.
+1. Platform abstraction cleanup.
    - Review Fabric and NeoForge entrypoints, permission bridges, and command registration.
    - Reduce duplicate loader-specific code only where it clearly lowers maintenance cost.
 
-3. Public documentation refresh.
+2. Profiling and pressure tuning.
+   - Re-run Fabric and NeoForge 8-client fake-player profiling after the 1.2.x diagnostics changes.
+   - Compare current rewrite avg/max, chunks/s, and `syncFallbackRatio` against the 1.1.0 spark baselines.
+   - Decide whether docs should recommend queue size 16, 32, or 64 for common server memory tiers.
+
+3. Config UX polish.
+   - Consider an OP-only `/antixray config` read-only summary command before adding any mutating config command.
+   - Keep edits/reload behavior conservative; avoid in-game config writes unless there is a clear user need.
+
+4. Public documentation refresh.
    - Update README / Modrinth intro if new profiling data changes the story.
    - Keep Fabric and NeoForge installation guidance explicit so users do not assume one jar supports both loaders.
 
@@ -72,8 +76,8 @@ These are broader and should not be mixed into a patch release unless there is a
   - Published NeoForge Minecraft range is `[26.1,26.1.3)` in metadata.
 - Paper anti-xray implementation changes.
   - Paper can rewrite packet buffers in the native serialization path; this mod must snapshot enough state at the mod layer, so exact implementation parity is not expected.
-  - Last checked Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6` on 2026-06-06.
-  - Paper default hidden/replacement fields were unchanged at that HEAD.
+  - Last checked Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6` on 2026-06-10; unchanged from the 2026-06-06 parity baseline.
+  - Paper default hidden/replacement fields were unchanged at that HEAD, and there were no new upstream commits to review on `main`.
   - This project intentionally includes extra default hidden blocks for Nether protection: `ancient_debris`, `nether_quartz_ore`, `nether_gold_ore`.
 - Async queue defaults.
   - Default `async-queue-size=16` prioritizes memory safety.

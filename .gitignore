@@ -19,6 +19,7 @@ Thumbs.db
 *.log
 .playwright-cli/
 tmp_*.txt
+*-rcon-smoke-*.json
 tmp-neoforge-installer-test/
 .serena/
 mcdr_test/

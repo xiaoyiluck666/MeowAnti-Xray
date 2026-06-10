@@ -561,6 +561,10 @@ public final class FakeOreService {
         );
     }
 
+    public List<String> statusDetails() {
+        return formatStatusLines(captureStatusSnapshot());
+    }
+
     public boolean isEnabled() {
         return globalPalette != null && globalPalette.enabled;
     }
@@ -637,6 +641,22 @@ public final class FakeOreService {
 
     public String configLoadSummary() {
         return config.loadSummary();
+    }
+
+    public String configPathSummary() {
+        return PlatformHelper.configDir().resolve("meowantixray.yml").toString();
+    }
+
+    public ReloadReport reloadConfigWithSummary() {
+        RuntimeStatusSnapshot before = captureStatusSnapshot();
+        boolean hadLoadedConfig = globalPalette != null;
+        reloadConfig();
+        RuntimeStatusSnapshot after = captureStatusSnapshot();
+        return new ReloadReport(
+            after.configLoadSummary(),
+            formatStatusLines(after),
+            describeConfigChanges(hadLoadedConfig ? before : null, after)
+        );
     }
 
     public synchronized String profileSummary() {
@@ -768,6 +788,10 @@ public final class FakeOreService {
     }
 
     public String debugBlock(ServerLevel level, BlockPos pos) {
+        return String.join(" | ", inspectBlockDetails(level, pos));
+    }
+
+    public List<String> inspectBlockDetails(ServerLevel level, BlockPos pos) {
         Palette palette = paletteFor(level);
         BlockPos safePos = Objects.requireNonNull(pos, "pos");
         BlockRevealContext revealState = inspectBlockRevealState(level, safePos, palette);
@@ -785,8 +809,12 @@ public final class FakeOreService {
         var fakeId = BuiltInRegistries.BLOCK.getKey(fakeState.getBlock());
         boolean hidden = revealState.hidden();
         boolean replacement = revealState.replacement();
+        boolean target = isTargetState(palette, realState);
         boolean exposed = revealState.exposed();
         boolean shouldReveal = revealState.shouldReveal();
+        boolean inRange = safePos.getY() >= MinecraftCompat.minBuildY(level)
+            && safePos.getY() <= Math.min(palette.maxBlockHeight, MinecraftCompat.maxBuildY(level));
+        boolean replacementObfuscates = obfuscatesReplacementBlocks(palette);
         TrackedBlockLocation trackedLocation = trackedBlockLocation(safePos);
         List<String> maskedPlayers = new ArrayList<>();
 
@@ -801,16 +829,29 @@ public final class FakeOreService {
         }
 
         String tracked = maskedPlayers.isEmpty() ? "none" : String.join(", ", maskedPlayers);
-        return "world=" + normalizeDimensionKey(level.dimension().toString())
+        String reason = inspectDecisionReason(palette.enabled, inRange, hidden, replacement, exposed);
+        List<String> lines = new ArrayList<>();
+        lines.add("inspect: world=" + normalizeDimensionKey(level.dimension().toString())
             + ", pos=" + pos.getX() + "," + pos.getY() + "," + pos.getZ()
             + ", real=" + realId
             + ", fake=" + fakeId
+            + ", reason=" + reason);
+        lines.add("state: enabled=" + palette.enabled
             + ", hidden=" + hidden
             + ", replacement=" + replacement
+            + ", target=" + target
             + ", exposed=" + exposed
             + ", shouldReveal=" + shouldReveal
             + ", trackedPlayers=" + maskedPlayers.size()
-            + " [" + tracked + "]";
+            + " [" + tracked + "]");
+        lines.add("config: mode=" + palette.engineMode
+            + ", max-block-height=" + palette.maxBlockHeight
+            + ", in-range=" + inRange
+            + ", obfuscates-replacement=" + replacementObfuscates
+            + ", use-permission=" + palette.usePermission
+            + ", bypass-permission=" + palette.bypassPermission
+            + ", update-radius=" + palette.updateRadius);
+        return lines;
     }
 
     private List<ServerPlayer> playerList() {
@@ -2842,11 +2883,19 @@ public final class FakeOreService {
     }
 
     private String normalizeDimensionKey(String key) {
-        return switch (key) {
+        String candidate = Objects.requireNonNullElse(key, "").trim();
+        if (candidate.startsWith("ResourceKey[")) {
+            int slashIndex = candidate.indexOf('/');
+            int endIndex = candidate.lastIndexOf(']');
+            if (slashIndex >= 0 && endIndex > slashIndex) {
+                candidate = candidate.substring(slashIndex + 1, endIndex).trim();
+            }
+        }
+        return switch (candidate) {
             case "overworld", "minecraft:overworld" -> "minecraft:overworld";
             case "nether", "the_nether", "minecraft:the_nether" -> "minecraft:the_nether";
             case "end", "the_end", "minecraft:the_end" -> "minecraft:the_end";
-            default -> key;
+            default -> candidate;
         };
     }
 
@@ -3064,10 +3113,207 @@ public final class FakeOreService {
             + ", global-replacement=" + globalReplacementCount;
     }
 
+    private RuntimeStatusSnapshot captureStatusSnapshot() {
+        if (globalPalette == null) {
+            return new RuntimeStatusSnapshot(
+                false,
+                "config not loaded yet",
+                configPathSummary(),
+                false,
+                0,
+                0,
+                false,
+                false,
+                0,
+                0,
+                0,
+                List.of()
+            );
+        }
+        List<DimensionStatus> dimensions = new ArrayList<>();
+        List<String> keys = new ArrayList<>(dimensionPalettes.keySet());
+        keys.sort(String::compareToIgnoreCase);
+        for (String key : keys) {
+            Palette palette = dimensionPalettes.get(key);
+            if (palette == null) {
+                continue;
+            }
+            dimensions.add(new DimensionStatus(
+                key,
+                palette.enabled,
+                palette.engineMode,
+                palette.maxBlockHeight,
+                palette.hiddenBlockIds.size(),
+                palette.replacementBlockIds.size()
+            ));
+        }
+        return new RuntimeStatusSnapshot(
+            true,
+            config.loadSummary(),
+            configPathSummary(),
+            globalPalette.enabled,
+            globalPalette.engineMode,
+            globalPalette.maxBlockHeight,
+            config.enforceEngineMode2,
+            config.asyncChunkRewrite,
+            Math.max(1, config.asyncWorkerThreads),
+            Math.max(0, config.asyncQueueSize),
+            asyncRewriteCapacity(),
+            List.copyOf(dimensions)
+        );
+    }
+
+    private List<String> formatStatusLines(RuntimeStatusSnapshot snapshot) {
+        List<String> lines = new ArrayList<>();
+        if (!snapshot.loaded()) {
+            lines.add("status: config not loaded yet");
+            lines.add("config-path: " + snapshot.configPath());
+            return lines;
+        }
+        lines.add("status: enabled=" + snapshot.enabled()
+            + ", mode=" + snapshot.engineMode()
+            + ", max-block-height=" + snapshot.maxBlockHeight()
+            + ", enforce-mode2=" + snapshot.enforceEngineMode2());
+        lines.add("async: enabled=" + snapshot.asyncChunkRewrite()
+            + ", workerThreads=" + snapshot.asyncWorkerThreads()
+            + ", queueSize=" + snapshot.asyncQueueSize()
+            + ", capacity=" + snapshot.asyncCapacity());
+        lines.add("config-path: " + snapshot.configPath());
+        if (snapshot.dimensions().isEmpty()) {
+            lines.add("dimensions: none");
+            return lines;
+        }
+        for (DimensionStatus dimension : snapshot.dimensions()) {
+            lines.add("dimension " + dimension.dimensionKey()
+                + ": enabled=" + dimension.enabled()
+                + ", mode=" + dimension.engineMode()
+                + ", max-block-height=" + dimension.maxBlockHeight()
+                + ", hidden=" + dimension.hiddenCount()
+                + ", replacement=" + dimension.replacementCount());
+        }
+        return lines;
+    }
+
+    private List<String> describeConfigChanges(RuntimeStatusSnapshot before, RuntimeStatusSnapshot after) {
+        if (before == null || !before.loaded()) {
+            return List.of("changes: initialized config state");
+        }
+        List<String> changes = new ArrayList<>();
+        appendChange(changes, "enabled", before.enabled(), after.enabled());
+        appendChange(changes, "engine-mode", before.engineMode(), after.engineMode());
+        appendChange(changes, "max-block-height", before.maxBlockHeight(), after.maxBlockHeight());
+        appendChange(changes, "enforce-mode2", before.enforceEngineMode2(), after.enforceEngineMode2());
+        appendChange(changes, "async-chunk-rewrite", before.asyncChunkRewrite(), after.asyncChunkRewrite());
+        appendChange(changes, "async-worker-threads", before.asyncWorkerThreads(), after.asyncWorkerThreads());
+        appendChange(changes, "async-queue-size", before.asyncQueueSize(), after.asyncQueueSize());
+        appendChange(changes, "async-capacity", before.asyncCapacity(), after.asyncCapacity());
+
+        Map<String, DimensionStatus> beforeByKey = new LinkedHashMap<>();
+        for (DimensionStatus dimension : before.dimensions()) {
+            beforeByKey.put(dimension.dimensionKey(), dimension);
+        }
+        Map<String, DimensionStatus> afterByKey = new LinkedHashMap<>();
+        for (DimensionStatus dimension : after.dimensions()) {
+            afterByKey.put(dimension.dimensionKey(), dimension);
+        }
+        LinkedHashSet<String> keys = new LinkedHashSet<>();
+        keys.addAll(beforeByKey.keySet());
+        keys.addAll(afterByKey.keySet());
+        for (String key : keys) {
+            DimensionStatus previous = beforeByKey.get(key);
+            DimensionStatus current = afterByKey.get(key);
+            if (previous == null && current != null) {
+                changes.add("dimension " + key + " added");
+                continue;
+            }
+            if (previous != null && current == null) {
+                changes.add("dimension " + key + " removed");
+                continue;
+            }
+            if (previous == null) {
+                continue;
+            }
+            if (current == null) {
+                continue;
+            }
+            appendDimensionChange(changes, key, "enabled", previous.enabled(), current.enabled());
+            appendDimensionChange(changes, key, "mode", previous.engineMode(), current.engineMode());
+            appendDimensionChange(changes, key, "max-block-height", previous.maxBlockHeight(), current.maxBlockHeight());
+            appendDimensionChange(changes, key, "hidden", previous.hiddenCount(), current.hiddenCount());
+            appendDimensionChange(changes, key, "replacement", previous.replacementCount(), current.replacementCount());
+        }
+        if (changes.isEmpty()) {
+            return List.of("changes: no effective runtime changes");
+        }
+        changes.add(0, "changes:");
+        return changes;
+    }
+
+    private static void appendChange(List<String> changes, String key, Object before, Object after) {
+        if (!Objects.equals(before, after)) {
+            changes.add(key + ": " + before + " -> " + after);
+        }
+    }
+
+    private static void appendDimensionChange(List<String> changes, String dimensionKey, String key, Object before, Object after) {
+        if (!Objects.equals(before, after)) {
+            changes.add("dimension " + dimensionKey + " " + key + ": " + before + " -> " + after);
+        }
+    }
+
+    static String inspectDecisionReason(boolean enabled, boolean inRange, boolean hidden, boolean replacement, boolean exposed) {
+        if (!enabled) {
+            return "disabled";
+        }
+        if (!inRange) {
+            return "out-of-range";
+        }
+        if (!hidden && !replacement) {
+            return "not-targeted";
+        }
+        if (exposed) {
+            return "exposed";
+        }
+        return hidden ? "hidden-block-obfuscated" : "replacement-block-obfuscated";
+    }
+
     record DimensionSummary(
         boolean enabled,
         int mode,
         int maxBlockHeight
+    ) {
+    }
+
+    public record ReloadReport(
+        String configLoadSummary,
+        List<String> statusLines,
+        List<String> changeLines
+    ) {
+    }
+
+    private record RuntimeStatusSnapshot(
+        boolean loaded,
+        String configLoadSummary,
+        String configPath,
+        boolean enabled,
+        int engineMode,
+        int maxBlockHeight,
+        boolean enforceEngineMode2,
+        boolean asyncChunkRewrite,
+        int asyncWorkerThreads,
+        int asyncQueueSize,
+        int asyncCapacity,
+        List<DimensionStatus> dimensions
+    ) {
+    }
+
+    private record DimensionStatus(
+        String dimensionKey,
+        boolean enabled,
+        int engineMode,
+        int maxBlockHeight,
+        int hiddenCount,
+        int replacementCount
     ) {
     }
 

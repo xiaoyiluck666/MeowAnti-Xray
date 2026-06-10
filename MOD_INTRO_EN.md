@@ -14,7 +14,7 @@ This project was split from `MeowConsole` and now contains only anti-xray functi
 - 🔌 **Built for modded servers**: Fabric and NeoForge share the same anti-xray core, keeping configuration and behavior aligned across loaders.
 - 🧱 **Safer decoys**: Block entities such as chests and ender chests are excluded from fake ore candidates, reducing visual glitches and confusing client-side states.
 - ⚡ **Stable under exploration load**: Async chunk packet rewriting uses bounded backpressure to avoid unbounded snapshot queues and memory spikes.
-- 📊 **Readable diagnostics**: `/antixray profile` reports rewrite counts, timings, async capacity, queue pressure, and sync fallback activity so server owners can tune with real data.
+- 📊 **Clearer server-owner diagnostics**: `/antixray status` now reports runtime state, async capacity, config path, and per-dimension hidden/replacement counts; `/antixray reload` reports effective runtime diffs; `/antixray inspect` explains why a specific block is or is not being obfuscated, now with stable standard dimension ids and cleaner console / RCON output.
 
 ## 🧩 Features
 
@@ -98,7 +98,7 @@ anti-xray:
         - minecraft:netherrack
 ```
 
-Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported.
+Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported. Explicit empty inline lists such as `hidden-blocks: []` are also preserved as intentional configuration.
 
 ## 🧰 Commands
 
@@ -107,6 +107,7 @@ Existing config files are supplemented with newly added missing keys during load
 /antixray reload
 /antixray profile
 /antixray debug <world> <x> <y> <z>
+/antixray inspect <world> <x> <y> <z>
 ```
 
 ## 🔗 Links

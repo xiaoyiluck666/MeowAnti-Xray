@@ -288,5 +288,89 @@ class FakeOreConfigTest {
         assertEquals(List.of("minecraft:ancient_debris"), nether.hiddenBlocks);
         assertEquals(List.of("minecraft:netherrack"), nether.replacementBlocks);
     }
+
+    @Test
+    void loadOrCreatePreservesExplicitEmptyInlineLists(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("meowantixray.yml");
+        String original = """
+            anti-xray:
+              hidden-blocks: []
+              replacement-blocks: []
+              dimension-settings:
+                minecraft:the_nether:
+                  hidden-blocks: []
+                  replacement-blocks: []
+            """;
+        Files.writeString(path, original, StandardCharsets.UTF_8);
+
+        FakeOreConfig config = FakeOreConfig.loadOrCreate(path);
+
+        assertEquals(List.of(), config.hiddenBlocks);
+        assertEquals(List.of(), config.replacementBlocks);
+
+        FakeOreConfig.DimensionSettings nether = config.dimensionSettings.get("minecraft:the_nether");
+        assertNotNull(nether);
+        assertEquals(List.of(), nether.hiddenBlocks);
+        assertEquals(List.of(), nether.replacementBlocks);
+    }
+
+    @Test
+    void loadOrCreateIgnoresInvalidInlineListsAndPreservesQuotedCommentText(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("meowantixray.yml");
+        String original = """
+            anti-xray:
+              bypass-permission: "custom.antixray#bypass"
+              hidden-blocks: [minecraft:diamond_ore
+              replacement-blocks: [minecraft:stone, "minecraft:deepslate"
+              dimension-settings:
+                "the_end":
+                  bypass-permission: 'custom.end#bypass'
+                  hidden-blocks: [minecraft:emerald_ore
+            """;
+        Files.writeString(path, original, StandardCharsets.UTF_8);
+
+        FakeOreConfig config = FakeOreConfig.loadOrCreate(path);
+
+        assertEquals("custom.antixray#bypass", config.bypassPermission);
+        assertEquals(List.of(
+            "minecraft:diamond_ore",
+            "minecraft:deepslate_diamond_ore",
+            "minecraft:emerald_ore",
+            "minecraft:deepslate_emerald_ore",
+            "minecraft:gold_ore",
+            "minecraft:deepslate_gold_ore",
+            "minecraft:iron_ore",
+            "minecraft:deepslate_iron_ore",
+            "minecraft:redstone_ore",
+            "minecraft:deepslate_redstone_ore",
+            "minecraft:lapis_ore",
+            "minecraft:deepslate_lapis_ore",
+            "minecraft:mossy_cobblestone",
+            "minecraft:obsidian",
+            "minecraft:chest",
+            "minecraft:coal_ore",
+            "minecraft:deepslate_coal_ore",
+            "minecraft:copper_ore",
+            "minecraft:deepslate_copper_ore",
+            "minecraft:raw_copper_block",
+            "minecraft:raw_iron_block",
+            "minecraft:clay",
+            "minecraft:ender_chest",
+            "minecraft:ancient_debris",
+            "minecraft:nether_quartz_ore",
+            "minecraft:nether_gold_ore"
+        ), config.hiddenBlocks);
+        assertEquals(List.of("minecraft:stone", "minecraft:oak_planks", "minecraft:deepslate"), config.replacementBlocks);
+
+        FakeOreConfig.DimensionSettings end = config.dimensionSettings.get("minecraft:the_end");
+        assertNotNull(end);
+        assertEquals("custom.end#bypass", end.bypassPermission);
+        assertEquals(List.of(
+            "minecraft:diamond_ore",
+            "minecraft:deepslate_diamond_ore",
+            "minecraft:emerald_ore",
+            "minecraft:deepslate_emerald_ore"
+        ), end.hiddenBlocks);
+    }
 }
 

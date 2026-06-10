@@ -8,8 +8,10 @@ Meow Anti-Xray is a server-side Minecraft mod focused on Paper-like anti-xray pr
 - Per-dimension hidden ore and replacement block configuration.
 - Reveal updates when players mine blocks, start breaking blocks, or explosions change nearby blocks.
 - Optional async chunk packet rewrite with lightweight profiling counters.
+- Expanded diagnostics for server owners: richer `/antixray status`, reload change summaries, and `/antixray inspect`.
+- Cleaner console and RCON command output, with stable `minecraft:*` dimension ids in inspect results.
 - Async Modrinth update checks on server startup, with the latest result shown in `/antixray status`.
-- Server commands: `/antixray`, `/antixray status`, `/antixray reload`, `/antixray profile`, `/antixray debug <world> <x> <y> <z>`.
+- Server commands: `/antixray`, `/antixray status`, `/antixray reload`, `/antixray profile`, `/antixray debug <world> <x> <y> <z>`, `/antixray inspect <world> <x> <y> <z>`.
 
 ## Configuration
 
@@ -38,6 +40,19 @@ anti-xray:
 ```
 
 Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted YAML values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported.
+Explicit empty inline lists such as `hidden-blocks: []` and `replacement-blocks: []` are also preserved as intentional user config.
+
+## Commands
+
+- `/antixray status`
+  Shows loader/runtime info, async capacity, config path, and per-dimension counts.
+- `/antixray reload`
+  Reloads the config and reports the post-reload state plus any effective runtime diffs.
+- `/antixray profile`
+  Shows rewrite/reveal counters, timings, async pressure, and sync fallback ratios.
+- `/antixray debug <world> <x> <y> <z>`
+- `/antixray inspect <world> <x> <y> <z>`
+  In-game this shows multi-line inspect output for a specific block position, including real/fake block, target classification, exposure state, and active config context. Console and RCON receive the same information in a compact single-line form.
 
 ## Build
 

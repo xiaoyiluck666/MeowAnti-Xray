@@ -14,7 +14,7 @@
 - 🔌 **专为 Mod 服务端维护**：Fabric 与 NeoForge 共用核心逻辑，尽量保持配置、行为和性能策略一致。
 - 🧱 **更安全的假矿处理**：箱子、末影箱等方块实体不会被用作假矿候选，减少客户端显示异常和误导性画面。
 - ⚡ **高压跑图更稳**：异步区块包重写配合队列背压，避免大量区块快照无限堆积导致内存暴涨。
-- 📊 **性能可观察**：`/antixray profile` 会显示重写次数、耗时、异步容量、排队压力和同步 fallback 情况，方便服主判断配置是否合适。
+- 📊 **服主更容易看懂当前状态**：`/antixray status` 会显示运行状态、async 容量、配置路径和每个维度的 hidden/replacement 计数；`/antixray reload` 会返回配置变化 diff；`/antixray inspect` 可以直接解释某个方块为什么会或不会被伪装，并稳定显示标准维度 ID。控制台和 RCON 里也更容易读。
 
 ## 🧩 核心功能
 
@@ -98,7 +98,7 @@ anti-xray:
         - minecraft:netherrack
 ```
 
-旧配置加载时会自动补齐新增但缺失的键，不会覆盖你已经写好的值。配置支持带引号的值、带引号的列表项、内联列表，以及 `nether` / `end` 这类维度别名。
+旧配置加载时会自动补齐新增但缺失的键，不会覆盖你已经写好的值。配置支持带引号的值、带引号的列表项、内联列表，以及 `nether` / `end` 这类维度别名；像 `hidden-blocks: []` 这样的显式空列表也会按你的配置原样保留。
 
 ## 🧰 常用命令
 
@@ -107,6 +107,7 @@ anti-xray:
 /antixray reload
 /antixray profile
 /antixray debug <world> <x> <y> <z>
+/antixray inspect <world> <x> <y> <z>
 ```
 
 ## 🔗 链接

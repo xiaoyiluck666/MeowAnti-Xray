@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.LinkedHashSet;
@@ -99,6 +101,84 @@ class FakeOreServiceTest {
         assertTrue(summary.contains("pressure="));
         assertTrue(summary.contains("syncFallbackRatio="));
         assertTrue(summary.contains("syncChunkSends/s="));
+    }
+
+    @Test
+    void statusDetailsExposeKeyRuntimeFields() throws Exception {
+        FakeOreService service = new FakeOreService();
+        setFakeConfigPath(createTempConfig("anti-xray:\n  hidden-blocks:\n    - minecraft:diamond_ore\n  replacement-blocks:\n    - minecraft:stone\n"));
+        setField(service, "globalPalette", createPalette(true, 2, 64, 3, 2, true, 2));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dimensionPalettes = (Map<String, Object>) getField(service, "dimensionPalettes");
+        dimensionPalettes.put("minecraft:overworld", createPalette(true, 2, 64, 3, 2, true, 2));
+        dimensionPalettes.put("minecraft:the_nether", createPalette(false, 1, 32, 1, 1, false, 2));
+        setConfig(service, createConfig(true, 2, 8));
+
+        List<String> lines = service.statusDetails();
+
+        assertTrue(lines.stream().anyMatch(line -> line.contains("status: enabled=true, mode=2, max-block-height=64")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("async: enabled=true, workerThreads=2, queueSize=8, capacity=10")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("dimension minecraft:overworld: enabled=true, mode=2, max-block-height=64, hidden=3, replacement=2")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("dimension minecraft:the_nether: enabled=false, mode=1, max-block-height=32, hidden=1, replacement=1")));
+    }
+
+    @Test
+    void reloadReportListsChangedRuntimeFields() throws Exception {
+        FakeOreService service = new FakeOreService();
+        setField(service, "globalPalette", createPalette(true, 2, 64, 3, 2, true, 2));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dimensionPalettes = (Map<String, Object>) getField(service, "dimensionPalettes");
+        dimensionPalettes.put("minecraft:overworld", createPalette(true, 2, 64, 3, 2, true, 2));
+        setConfig(service, createConfig(true, 2, 8));
+
+        setFakeConfigPath(createTempConfig("""
+            anti-xray:
+              enabled: false
+              engine-mode: 1
+              enforce-engine-mode-2: false
+              async-worker-threads: 3
+              async-queue-size: 1
+              hidden-blocks:
+                - minecraft:diamond_ore
+              replacement-blocks:
+                - minecraft:stone
+              dimension-settings:
+                minecraft:overworld:
+                  enabled: false
+                  engine-mode: 1
+                  hidden-blocks:
+                    - minecraft:diamond_ore
+                  replacement-blocks:
+                    - minecraft:stone
+            """));
+
+        FakeOreService.ReloadReport report = service.reloadConfigWithSummary();
+
+        assertTrue(report.statusLines().stream().anyMatch(line -> line.contains("status: enabled=false, mode=1")));
+        assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("enabled: true -> false")));
+        assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("engine-mode: 2 -> 1")));
+        assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("async-worker-threads: 2 -> 3")));
+        assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("dimension minecraft:overworld enabled: true -> false")));
+    }
+
+    @Test
+    void inspectDecisionReasonExplainsCommonCases() {
+        assertEquals("disabled", FakeOreService.inspectDecisionReason(false, true, true, false, false));
+        assertEquals("out-of-range", FakeOreService.inspectDecisionReason(true, false, true, false, false));
+        assertEquals("not-targeted", FakeOreService.inspectDecisionReason(true, true, false, false, false));
+        assertEquals("exposed", FakeOreService.inspectDecisionReason(true, true, true, false, true));
+        assertEquals("hidden-block-obfuscated", FakeOreService.inspectDecisionReason(true, true, true, false, false));
+        assertEquals("replacement-block-obfuscated", FakeOreService.inspectDecisionReason(true, true, false, true, false));
+    }
+
+    @Test
+    void normalizeDimensionKeyStripsResourceKeyWrapper() throws Exception {
+        FakeOreService service = new FakeOreService();
+        Method method = FakeOreService.class.getDeclaredMethod("normalizeDimensionKey", String.class);
+        method.setAccessible(true);
+
+        assertEquals("minecraft:overworld", method.invoke(service, "ResourceKey[minecraft:dimension / minecraft:overworld]"));
+        assertEquals("minecraft:the_nether", method.invoke(service, "ResourceKey[minecraft:dimension / minecraft:the_nether]"));
     }
 
     @Test
@@ -373,6 +453,104 @@ class FakeOreServiceTest {
         Field field = FakeOreService.class.getDeclaredField("chunkRewriteExecutor");
         field.setAccessible(true);
         return field;
+    }
+
+    private static void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = FakeOreService.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
+    }
+
+    private static Object getField(Object target, String fieldName) throws Exception {
+        Field field = FakeOreService.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        return field.get(target);
+    }
+
+    private static void setConfig(FakeOreService service, FakeOreConfig config) throws Exception {
+        setField(service, "config", config);
+    }
+
+    private static FakeOreConfig createConfig(boolean asyncChunkRewrite, int asyncWorkerThreads, int asyncQueueSize) {
+        FakeOreConfig config = new FakeOreConfig();
+        config.asyncChunkRewrite = asyncChunkRewrite;
+        config.asyncWorkerThreads = asyncWorkerThreads;
+        config.asyncQueueSize = asyncQueueSize;
+        return config;
+    }
+
+    private static Object createPalette(
+        boolean enabled,
+        int engineMode,
+        int maxBlockHeight,
+        int hiddenCount,
+        int replacementCount,
+        boolean usePermission,
+        int updateRadius
+    ) throws Exception {
+        Class<?> paletteClass = Class.forName("com.meowantixray.antixray.FakeOreService$Palette");
+        var constructor = paletteClass.getDeclaredConstructors()[0];
+        constructor.setAccessible(true);
+        List<String> hidden = new java.util.ArrayList<>();
+        for (int i = 0; i < hiddenCount; i++) {
+            hidden.add("minecraft:hidden_" + i);
+        }
+        List<String> replacement = new java.util.ArrayList<>();
+        for (int i = 0; i < replacementCount; i++) {
+            replacement.add("minecraft:replacement_" + i);
+        }
+        return constructor.newInstance(
+            enabled,
+            engineMode,
+            maxBlockHeight,
+            false,
+            true,
+            true,
+            false,
+            usePermission,
+            "paper.antixray.bypass",
+            updateRadius,
+            10,
+            32768,
+            hidden,
+            replacement,
+            Set.of(),
+            Set.of(),
+            List.of(),
+            List.of(),
+            new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+            new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+            new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+            new boolean[Block.BLOCK_STATE_REGISTRY.size()]
+        );
+    }
+
+    private static Path createTempConfig(String content) throws Exception {
+        Path dir = Files.createTempDirectory("meowantixray-test-config");
+        Path path = dir.resolve("meowantixray.yml");
+        Files.writeString(path, content);
+        return path;
+    }
+
+    private static void setFakeConfigPath(Path path) throws Exception {
+        Class<?> helperClass = Class.forName("com.meowantixray.platform.PlatformHelper");
+        Class<?> platformClass = Class.forName("com.meowantixray.platform.ModPlatform");
+        Class<?> loaderTypeClass = Class.forName("com.meowantixray.platform.LoaderType");
+        Object proxy = java.lang.reflect.Proxy.newProxyInstance(
+            platformClass.getClassLoader(),
+            new Class<?>[]{platformClass},
+            (ignored, method, args) -> switch (method.getName()) {
+                case "loaderType" -> loaderTypeClass.getField("FABRIC").get(null);
+                case "configDir", "gameDir" -> path.getParent();
+                case "isModLoaded" -> false;
+                case "modVersion" -> java.util.Optional.empty();
+                case "loadedMods" -> List.of();
+                case "hasPermission" -> false;
+                default -> throw new UnsupportedOperationException(method.getName());
+            }
+        );
+        Method bind = helperClass.getDeclaredMethod("bind", platformClass);
+        bind.invoke(null, proxy);
     }
 
     private static BlockState[] filledSection(BlockState state) {

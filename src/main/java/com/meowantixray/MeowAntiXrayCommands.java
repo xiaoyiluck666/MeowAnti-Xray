@@ -17,6 +17,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.level.ServerLevel;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -31,7 +33,8 @@ public final class MeowAntiXrayCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> buildAntiXrayCommand(String name) {
         String commandName = Objects.requireNonNull(name, "commandName");
-        LiteralArgumentBuilder<CommandSourceStack> debugCommand = debugCommand();
+        LiteralArgumentBuilder<CommandSourceStack> debugCommand = inspectCommand("debug");
+        LiteralArgumentBuilder<CommandSourceStack> inspectCommand = inspectCommand("inspect");
 
         return Commands.literal(commandName)
             .requires(MeowAntiXrayCommands::hasAdminPermission)
@@ -43,7 +46,8 @@ public final class MeowAntiXrayCommands {
             .then(Commands.literal("profile")
                 .executes(context -> sendAntiXrayProfile(context.getSource())))
             .then(stressCommand())
-            .then(debugCommand);
+            .then(debugCommand)
+            .then(inspectCommand);
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> stressCommand() {
@@ -56,16 +60,16 @@ public final class MeowAntiXrayCommands {
         return Objects.requireNonNull(Commands.literal("stress"), "stress command").then(worldArgument);
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> debugCommand() {
+    private static LiteralArgumentBuilder<CommandSourceStack> inspectCommand(String name) {
         RequiredArgumentBuilder<CommandSourceStack, Integer> zArgument = commandArgument("z", IntegerArgumentType.integer())
-            .executes(MeowAntiXrayCommands::debugAntiXrayBlock);
+            .executes(MeowAntiXrayCommands::inspectAntiXrayBlock);
         RequiredArgumentBuilder<CommandSourceStack, Integer> yArgument = commandArgument("y", IntegerArgumentType.integer())
             .then(zArgument);
         RequiredArgumentBuilder<CommandSourceStack, Integer> xArgument = commandArgument("x", IntegerArgumentType.integer())
             .then(yArgument);
         RequiredArgumentBuilder<CommandSourceStack, String> worldArgument = commandArgument("world", StringArgumentType.word())
             .then(xArgument);
-        return Objects.requireNonNull(Commands.literal("debug"), "debug command").then(worldArgument);
+        return Objects.requireNonNull(Commands.literal(name), name + " command").then(worldArgument);
     }
 
     private static <T> RequiredArgumentBuilder<CommandSourceStack, T> commandArgument(String name, ArgumentType<T> type) {
@@ -79,42 +83,30 @@ public final class MeowAntiXrayCommands {
     }
 
     private static int sendAntiXrayStatus(CommandSourceStack source) {
-        source.sendSuccess(
-            () -> Component.literal("[Anti-Xray] runtime: loader=" + PlatformHelper.loaderType().modrinthLoaderId()
-                + ", version=" + PlatformHelper.modVersion("meowantixray", "unknown")
-                + ", minecraft=" + MinecraftCompat.currentMinecraftVersionId()),
-            false
-        );
-        source.sendSuccess(
-            () -> Component.literal("[Anti-Xray] config source: " + MeowAntiXrayMod.fakeOre().configLoadSummary()),
-            false
-        );
-        source.sendSuccess(
-            () -> Component.literal("[Anti-Xray] " + MeowAntiXrayMod.fakeOre().describeConfig()),
-            false
-        );
+        List<String> lines = new ArrayList<>();
+        lines.add("runtime: loader=" + PlatformHelper.loaderType().modrinthLoaderId()
+            + ", version=" + PlatformHelper.modVersion("meowantixray", "unknown")
+            + ", minecraft=" + MinecraftCompat.currentMinecraftVersionId());
+        lines.add("config source: " + MeowAntiXrayMod.fakeOre().configLoadSummary());
+        lines.addAll(MeowAntiXrayMod.fakeOre().statusDetails());
         String updateStatus = Objects.requireNonNull(ModrinthUpdateChecker.statusSummary(), "update status");
         if (source.getPlayer() != null) {
+            sendCommandLines(source, lines, false);
             ModrinthUpdateChecker.sendStatusTo(source.getPlayer());
         } else {
-            source.sendSuccess(
-                () -> Component.literal(updateStatus),
-                false
-            );
+            lines.add(stripPrefix(updateStatus));
+            sendCommandLines(source, lines, false);
         }
         return 1;
     }
 
     private static int reloadAntiXray(CommandSourceStack source) {
-        MeowAntiXrayMod.fakeOre().reloadConfig();
-        source.sendSuccess(
-            () -> Component.literal("[Anti-Xray] config source: " + MeowAntiXrayMod.fakeOre().configLoadSummary()),
-            true
-        );
-        source.sendSuccess(
-            () -> Component.literal("[Anti-Xray] config reloaded: " + MeowAntiXrayMod.fakeOre().describeConfig()),
-            true
-        );
+        var report = MeowAntiXrayMod.fakeOre().reloadConfigWithSummary();
+        List<String> lines = new ArrayList<>();
+        lines.add("config source: " + report.configLoadSummary());
+        lines.addAll(report.statusLines());
+        lines.addAll(report.changeLines());
+        sendCommandLines(source, lines, true);
         return 1;
     }
 
@@ -147,7 +139,7 @@ public final class MeowAntiXrayCommands {
         return 1;
     }
 
-    private static int debugAntiXrayBlock(CommandContext<CommandSourceStack> context) {
+    private static int inspectAntiXrayBlock(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         if (!(source.getServer() instanceof DedicatedServer server) || !server.isRunning()) {
             source.sendFailure(Component.literal("[Anti-Xray] server is not ready."));
@@ -164,8 +156,11 @@ public final class MeowAntiXrayCommands {
         int x = IntegerArgumentType.getInteger(context, "x");
         int y = IntegerArgumentType.getInteger(context, "y");
         int z = IntegerArgumentType.getInteger(context, "z");
-        String debug = MeowAntiXrayMod.fakeOre().debugBlock(level, new net.minecraft.core.BlockPos(x, y, z));
-        source.sendSuccess(() -> Component.literal("[Anti-Xray] " + debug), false);
+        sendCommandLines(
+            source,
+            MeowAntiXrayMod.fakeOre().inspectBlockDetails(level, new net.minecraft.core.BlockPos(x, y, z)),
+            false
+        );
         return 1;
     }
 
@@ -194,11 +189,48 @@ public final class MeowAntiXrayCommands {
         }
 
         for (ServerLevel level : server.getAllLevels()) {
-            if (worldLabel(level.dimension()).equalsIgnoreCase(query) || level.dimension().toString().equalsIgnoreCase(query)) {
+            String dimensionId = worldId(level.dimension());
+            if (worldLabel(level.dimension()).equalsIgnoreCase(query) || dimensionId.equalsIgnoreCase(query)) {
                 return level;
             }
         }
         return null;
+    }
+
+    private static void sendCommandLines(CommandSourceStack source, List<String> lines, boolean broadcastToOps) {
+        List<String> safeLines = lines.stream()
+            .filter(Objects::nonNull)
+            .map(String::strip)
+            .filter(line -> !line.isEmpty())
+            .toList();
+        if (safeLines.isEmpty()) {
+            return;
+        }
+        if (source.getPlayer() == null) {
+            source.sendSuccess(
+                () -> Component.literal("[Anti-Xray] " + formatCompactCommandOutput(safeLines)),
+                broadcastToOps
+            );
+            return;
+        }
+        for (String line : safeLines) {
+            String message = line;
+            source.sendSuccess(() -> Component.literal("[Anti-Xray] " + message), broadcastToOps);
+        }
+    }
+
+    static String formatCompactCommandOutput(List<String> lines) {
+        return lines.stream()
+            .filter(Objects::nonNull)
+            .map(String::strip)
+            .filter(line -> !line.isEmpty())
+            .reduce((left, right) -> left + " || " + right)
+            .orElse("");
+    }
+
+    private static String stripPrefix(String line) {
+        String value = Objects.requireNonNullElse(line, "").strip();
+        return value.startsWith("[Anti-Xray] ") ? value.substring("[Anti-Xray] ".length()) : value;
     }
 
     private static String worldLabel(ResourceKey<net.minecraft.world.level.Level> worldKey) {
@@ -211,6 +243,18 @@ public final class MeowAntiXrayCommands {
         if (net.minecraft.world.level.Level.END.equals(worldKey)) {
             return "end";
         }
-        return worldKey.toString();
+        return worldId(worldKey);
+    }
+
+    private static String worldId(ResourceKey<net.minecraft.world.level.Level> worldKey) {
+        String raw = worldKey.toString();
+        if (raw.startsWith("ResourceKey[")) {
+            int slashIndex = raw.indexOf('/');
+            int endIndex = raw.lastIndexOf(']');
+            if (slashIndex >= 0 && endIndex > slashIndex) {
+                return raw.substring(slashIndex + 1, endIndex).trim();
+            }
+        }
+        return raw;
     }
 }
