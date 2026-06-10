@@ -53,13 +53,14 @@ These items are developer-side maintenance only. Do not bump `mod_version` or ad
 These are broader and should not be mixed into a patch release unless there is a strong reason.
 
 1. Platform abstraction cleanup.
+   - Done: shared `PlatformSupport` now owns loaded-mod sorting and permission request validation.
    - Review Fabric and NeoForge entrypoints, permission bridges, and command registration.
    - Reduce duplicate loader-specific code only where it clearly lowers maintenance cost.
 
 2. Profiling and pressure tuning.
-   - Re-run Fabric and NeoForge 8-client fake-player profiling after the 1.2.x diagnostics changes.
-   - Compare current rewrite avg/max, chunks/s, and `syncFallbackRatio` against the 1.1.0 spark baselines.
-   - Decide whether docs should recommend queue size 16, 32, or 64 for common server memory tiers.
+   - Done: 2026-06-10 default `async-queue-size=16` Fabric 8-client run reached `378.04 chunks/s`, rewrite avg `2.607ms`, `syncFallbackRatio=42.3%`, spark `https://spark.lucko.me/5E7fw7pAwG`.
+   - Done: 2026-06-10 default `async-queue-size=16` NeoForge 8-client run reached `357.55 chunks/s`, rewrite avg `2.845ms`, `syncFallbackRatio=38.6%`, spark `https://spark.lucko.me/3gRMdXzJoW`.
+   - Keep queue 16 as the documented default for memory safety; keep 32/64 as optional tuning for memory-rich servers watching `/antixray profile`.
 
 3. Config UX polish.
    - Consider an OP-only `/antixray config` read-only summary command before adding any mutating config command.
