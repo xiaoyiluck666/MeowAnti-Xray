@@ -70,6 +70,30 @@ These are broader and should not be mixed into a patch release unless there is a
    - Update README / Modrinth intro if new profiling data changes the story.
    - Keep Fabric and NeoForge installation guidance explicit so users do not assume one jar supports both loaders.
 
+## Proposed 1.3.0 Plan
+
+Goal: ship a small, practical minor release only if the remaining work produces user-visible diagnostics or compatibility value. Otherwise keep the next items as developer maintenance without bumping `mod_version`.
+
+1. Finish platform cleanup.
+   - Audit Fabric/NeoForge entrypoint event wiring and command registration for remaining duplication.
+   - Keep loader-specific lifecycle hooks separate unless a shared abstraction removes real maintenance risk.
+   - Do not change mixin behavior or packet rewrite routing in this pass.
+
+2. Add read-only config inspection.
+   - Add an OP-only `/antixray config` command that prints the active global and per-dimension config summary.
+   - Reuse existing status/reload formatting where possible.
+   - Do not add in-game config mutation or file writes for 1.3.0.
+
+3. Improve tuning guidance from fresh profiling.
+   - Keep `async-queue-size=16` as the default memory-safe recommendation.
+   - Add concise docs explaining when to try `32` or `64`, using the 2026-06-10 Fabric/NeoForge 8-client profiling numbers.
+   - Keep spark links in project docs or release notes only if they clarify the recommendation.
+
+4. Release decision gate.
+   - If `/antixray config` lands, release as `1.3.0`.
+   - If only internal cleanup lands, do not release a new Modrinth version; commit and push as maintenance.
+   - Before release, run `.\gradlew.bat clean test :neoforge:test releaseAllLoaders --console=plain`, then dry-run `.\tools\publish-modrinth.ps1`.
+
 ## Watch List
 
 - Minecraft `26.1.x` and NeoForge beta changes.
