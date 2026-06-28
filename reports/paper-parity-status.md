@@ -31,6 +31,7 @@ Practical behavior/config parity is high, roughly 85%. Internal implementation p
 | EntityBlock decoys | Aligned | Block entities are excluded from fake block candidates. |
 | Neighbor reveal/update radius | Aligned | Paper-style neighbor shapes are covered by tests. |
 | Lava obscures | Aligned | `lava-obscures` participates in exposure checks. |
+| Transparent override solid checks | Aligned | Paper-style transparent overrides for spawner, barrier, shulker boxes, slime block, and mangrove roots are covered by regression tests. |
 | Packet bit storage thresholds | Aligned | Target bits are tested against Paper-style thresholds. |
 | Async processing | Mod-layer equivalent | Uses bounded queue/backpressure to avoid snapshot task OOM. |
 | Fake block randomness | Mostly aligned | Runtime rewrite paths now use a non-zero `ThreadLocalRandom` seed followed by xorshift and unsigned bounded scaling, matching Paper's seed model. The mod still creates random state at the loader snapshot section boundary rather than Paper's native chunk serialization lifecycle. |
@@ -46,6 +47,6 @@ Practical behavior/config parity is high, roughly 85%. Internal implementation p
 ## Next Alignment Work
 
 1. Recheck Paper upstream before each minor release or compatibility release.
-2. Keep parity tests for engine modes, replacement targets, neighbor reveal shapes, lava exposure, and bit storage thresholds green on both supported branches.
+2. Keep parity tests for engine modes, replacement targets, neighbor reveal shapes, lava exposure, transparent overrides, and bit storage thresholds green on both supported branches.
 3. If Paper changes anti-xray defaults, target selection, or random selection logic, update `main` first, then cherry-pick only the behavior fix to `maintenance/26.1.x` if it is compatible with 26.1.x mappings and loader APIs.
 4. Keep implementation differences documented when they are caused by loader-layer constraints rather than missing work.
