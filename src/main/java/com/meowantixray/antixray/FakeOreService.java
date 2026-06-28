@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -338,7 +339,7 @@ public final class FakeOreService {
             SectionPaletteReadResult paletteRead = visibilityBuild.centerRead();
 
             SectionObfuscationPlan plan = new SectionObfuscationPlan();
-            ObfuscationRandom random = createObfuscationRandom(level, MinecraftCompat.chunkX(chunk.getPos()), sectionY, MinecraftCompat.chunkZ(chunk.getPos()), palette);
+            ObfuscationRandom random = createObfuscationRandom(palette);
             int remainingBudget = palette.guaranteeHideAllHiddenBlocks ? Integer.MAX_VALUE : Math.max(0, palette.maxBlocksPerChunk - count);
             boolean budgetReached = obfuscateLiveSectionLayers(
                 level,
@@ -797,13 +798,7 @@ public final class FakeOreService {
         BlockRevealContext revealState = inspectBlockRevealState(level, safePos, palette);
         BlockState realState = revealState.realState();
         var realId = BuiltInRegistries.BLOCK.getKey(realState.getBlock());
-        ObfuscationRandom debugRandom = createObfuscationRandom(
-            level,
-            SectionPos.blockToSectionCoord(safePos.getX()),
-            SectionPos.blockToSectionCoord(safePos.getY()),
-            SectionPos.blockToSectionCoord(safePos.getZ()),
-            palette
-        );
+        ObfuscationRandom debugRandom = createObfuscationRandom(palette);
         debugRandom.enterLayer(safePos.getY() & 15);
         BlockState fakeState = chooseFakeState(level, safePos, realState, palette, debugRandom);
         var fakeId = BuiltInRegistries.BLOCK.getKey(fakeState.getBlock());
@@ -1315,7 +1310,7 @@ public final class FakeOreService {
             SectionVisibility visibility = visibilityBuild.visibility();
             SectionPaletteReadResult paletteRead = visibilityBuild.centerRead();
             SectionObfuscationPlan plan = new SectionObfuscationPlan();
-            ObfuscationRandom random = createObfuscationRandom(task.worldSeed(), task.chunkX(), source.sectionY(), task.chunkZ(), task.palette());
+            ObfuscationRandom random = createObfuscationRandom(task.palette());
             int remainingBudget = task.palette().guaranteeHideAllHiddenBlocks ? Integer.MAX_VALUE : Math.max(0, task.palette().maxBlocksPerChunk - count);
             boolean budgetReached = obfuscateSnapshotSectionLayers(
                 task,
@@ -2736,6 +2731,14 @@ public final class FakeOreService {
         return seed == 0 ? fallback : seed;
     }
 
+    static int paperRuntimeRandomSeed() {
+        int seed;
+        while ((seed = ThreadLocalRandom.current().nextInt()) == 0) {
+            // Paper avoids zero because xorshift would stay at zero.
+        }
+        return seed;
+    }
+
     private static int xorshift32(int state) {
         int next = normalizeNonZeroSeed(state, 0x6D2B79F5);
         next ^= next << 13;
@@ -2748,12 +2751,8 @@ public final class FakeOreService {
         return (int) ((Integer.toUnsignedLong(state) * bound) >>> 32);
     }
 
-    private ObfuscationRandom createObfuscationRandom(ServerLevel level, int sectionX, int sectionY, int sectionZ, Palette palette) {
-        return new ObfuscationRandom(palette.engineMode, level.getSeed(), sectionX, sectionY, sectionZ, palette.mode2DecoyStates.size());
-    }
-
-    private ObfuscationRandom createObfuscationRandom(long worldSeed, int sectionX, int sectionY, int sectionZ, Palette palette) {
-        return new ObfuscationRandom(palette.engineMode, worldSeed, sectionX, sectionY, sectionZ, palette.mode2DecoyStates.size());
+    private ObfuscationRandom createObfuscationRandom(Palette palette) {
+        return new ObfuscationRandom(palette.engineMode, palette.mode2DecoyStates.size());
     }
 
     private ChunkPacketInfo createChunkPacketInfo(
@@ -3835,10 +3834,10 @@ public final class FakeOreService {
         private int currentLayer;
         private int currentLayerDecoy;
 
-        private ObfuscationRandom(int engineMode, long worldSeed, int sectionX, int sectionY, int sectionZ, int decoyBound) {
+        private ObfuscationRandom(int engineMode, int decoyBound) {
             this.engineMode = engineMode;
             this.decoyBound = decoyBound;
-            this.state = mixSectionSeed(worldSeed, sectionX, sectionY, sectionZ, 0x6D2B79F5);
+            this.state = paperRuntimeRandomSeed();
             this.currentLayer = -1;
             this.currentLayerDecoy = 0;
         }
