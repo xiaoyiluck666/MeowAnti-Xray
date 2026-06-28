@@ -1,11 +1,11 @@
 # Meow Anti-Xray Roadmap
 
-Last updated: 2026-06-10
+Last updated: 2026-06-28
 
 ## Current State
 
 - Latest published version: `1.2.2`.
-- Current local release candidate: none.
+- Current local release candidate: `1.2.3`.
 - Modrinth project: `meowanti-xray` / project id `8pl8obwY`.
 - Latest Modrinth versions:
   - Fabric: `1.2.2+fabric`, version id `Nvxt3UCV`.
@@ -27,6 +27,7 @@ Last updated: 2026-06-10
 - `1.2.0` published to Modrinth as separate listed versions: Fabric `ZYvAlFb3` and NeoForge `8nPHUeNS`.
 - `1.2.1` published to Modrinth as separate listed versions: Fabric `lRWSPdkr` and NeoForge `Mh7pIebp`; added stronger `/antixray status`, `/antixray reload`, and `/antixray inspect` diagnostics plus explicit empty-list config compatibility.
 - `1.2.2` published to Modrinth as separate listed versions: Fabric `Nvxt3UCV` and NeoForge `lzz6pViR`; fixed command output polish for RCON/console and normalized inspect dimension IDs.
+- `1.2.3` local release candidate prepared for the 26.1.x maintenance line; includes Paper parity random seed alignment and transparent override regression coverage. Not uploaded to Modrinth yet.
 
 ## Post-1.1.1 Developer Maintenance
 
