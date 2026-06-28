@@ -1,130 +1,92 @@
 # Meow Anti-Xray Roadmap
 
-Last updated: 2026-06-10
+Last updated: 2026-06-28
 
 ## Current State
 
-- Latest published version: `1.2.2`.
-- Current local release candidate: none.
+- Latest published version: `1.3.0`.
+- Current mainline target: Minecraft `26.2`, Java `25`.
+- Mainline branch: `main` for Minecraft `26.2` / mod `1.3.x+`.
+- Maintenance branch: `maintenance/26.1.x` for Minecraft `26.1`, `26.1.1`, `26.1.2` / mod `1.2.x`.
 - Modrinth project: `meowanti-xray` / project id `8pl8obwY`.
 - Latest Modrinth versions:
+  - Fabric: `1.3.0+fabric`, version id `rj3Ex0cy`.
+  - NeoForge: `1.3.0+neoforge`, version id `OquEDb5X`.
+- Latest 26.1.x versions:
   - Fabric: `1.2.2+fabric`, version id `Nvxt3UCV`.
   - NeoForge: `1.2.2+neoforge`, version id `lzz6pViR`.
-- Current Minecraft target: `26.1.2`; published compatibility range is `26.1`, `26.1.1`, `26.1.2`.
-- Current Java target: `25`.
 - Current package name: `com.meowantixray`.
+
+## Branch Policy
+
+- Keep `main` on Minecraft `26.2` dependencies and metadata.
+- Keep `maintenance/26.1.x` on Minecraft `26.1.x` dependencies and metadata.
+- Do not merge `main` wholesale into `maintenance/26.1.x`.
+- For shared bugfixes, Paper parity adjustments, or diagnostics fixes, cherry-pick the smallest commit and then recheck:
+  - `gradle.properties`
+  - `fabric.mod.json`
+  - `neoforge.mods.toml`
+  - `tools/publish-modrinth.ps1`
+  - pressure-test command `--mc-version`
+- New feature work should land on `main` first unless it is specifically a 26.1.x compatibility fix.
 
 ## Recently Completed
 
-- `1.0.1`: runtime diagnostics, `/antixray profile` async pressure metrics, sync chunk send counters, and snapshot allocation reduction.
-- `1.0.2`: Paper engine mode 1 natural replacement parity and Fabric local palette crash fix.
-- `1.1.0` local release candidate: package, entrypoint, mixin plugin, and command class identity migrated from MeowConsole naming to Meow Anti-Xray naming; mod id and config path unchanged.
-- Post-rename local optimization: Paper parity target lookup now follows actual obfuscation targets for mode 1/2/3, replacement pass checks reuse static arrays, and `/antixray profile` reports async pressure plus sync fallback ratio.
-- Fabric 1.1.0 startup + spark run passed: `91s`, 8/8 fake clients, `28766` chunks, `316.01 chunks/s`, `0` errors, profile rewrite avg `2.662ms`, sync fallback `43.0%`, spark `https://spark.lucko.me/A9EOkRRmFJ`.
-- NeoForge 1.1.0 clean startup + spark run passed: `91s`, 8/8 fake clients, `29699` chunks, `326.29 chunks/s`, `0` errors, profile rewrite avg `2.893ms`, sync fallback `38.2%`, spark `https://spark.lucko.me/emnV8jJ4yG`.
-- `1.1.0` published to Modrinth as separate listed versions: Fabric `RBQd8pvr` and NeoForge `k257upBH`.
-- `1.1.1`: Fabric + Polymer compatibility fix for missing chunk packet context warning; published to Modrinth as Fabric `u02Xc7ol` and NeoForge `bJBqlAOa`.
-- `1.2.0` published to Modrinth as separate listed versions: Fabric `ZYvAlFb3` and NeoForge `8nPHUeNS`.
-- `1.2.1` published to Modrinth as separate listed versions: Fabric `lRWSPdkr` and NeoForge `Mh7pIebp`; added stronger `/antixray status`, `/antixray reload`, and `/antixray inspect` diagnostics plus explicit empty-list config compatibility.
-- `1.2.2` published to Modrinth as separate listed versions: Fabric `Nvxt3UCV` and NeoForge `lzz6pViR`; fixed command output polish for RCON/console and normalized inspect dimension IDs.
-
-## Post-1.1.1 Developer Maintenance
-
-These items are developer-side maintenance only. Do not bump `mod_version` or add user-facing changelogs unless runtime code, config behavior, compatibility, or packaged artifacts change.
-
-1. Improve release automation safety.
-   - Release helper added at `tools/publish-modrinth.ps1`; it prints jar metadata, SHA512/SHA1 checksums, duplicate Modrinth version details, and a post-upload `.codex` release record snippet.
-   - Do not store Modrinth tokens in repo or `.codex`.
-   - Continue publishing separate `x.y.z+fabric` and `x.y.z+neoforge` Modrinth versions.
-
-2. Update checker UX polish.
-   - Unit coverage confirms `1.1.1+fabric` / `1.1.1+neoforge` compare equal to local `1.1.1`.
-   - Keep this as test/verification work unless the in-game message behavior changes.
-
-3. Fabric Polymer compatibility follow-up.
-   - Issue #1 was fixed and published in `1.1.1`.
-   - Issue #1 is closed; keep a watch item for future Polymer / Fabric API packet context behavior changes.
-
-4. Roadmap hygiene.
-   - Keep completed release items out of patch candidates so internal maintenance is not mistaken for a user-facing version plan.
+- `1.2.2`: latest Minecraft 26.1.x maintenance release; fixed command output polish for RCON/console and normalized inspect dimension IDs.
+- `1.3.0`: Minecraft 26.2 compatibility release; updated Fabric Loader/API and NeoForge targets, updated pressure runner to protocol `776`, retained protocol `775` support for 26.1.2, completed dual-loader pressure tests, and published Fabric/NeoForge builds to Modrinth.
+- `maintenance/26.1.x`: remote branch created from `e7b3966` to isolate 26.1.x support from the 26.2 mainline.
+- Paper parity status report added at `reports/paper-parity-status.md`.
 
 ## Next Iteration Candidates
 
-These are broader and should not be mixed into a patch release unless there is a strong reason.
+1. Paper parity maintenance.
+   - Recheck Paper upstream before each minor or compatibility release.
+   - Keep tests covering engine modes, natural replacement, replacement targets, neighbor reveal shapes, lava exposure, and bit storage thresholds.
+   - If Paper changes defaults or target selection, update `main` first and cherry-pick compatible behavior fixes to `maintenance/26.1.x`.
 
-1. Platform abstraction cleanup.
-   - Done: shared `PlatformSupport` now owns loaded-mod sorting and permission request validation.
-   - Review Fabric and NeoForge entrypoints, permission bridges, and command registration.
-   - Reduce duplicate loader-specific code only where it clearly lowers maintenance cost.
-
-2. Profiling and pressure tuning.
-   - Done: 2026-06-10 default `async-queue-size=16` Fabric 8-client run reached `378.04 chunks/s`, rewrite avg `2.607ms`, `syncFallbackRatio=42.3%`, spark `https://spark.lucko.me/5E7fw7pAwG`.
-   - Done: 2026-06-10 default `async-queue-size=16` NeoForge 8-client run reached `357.55 chunks/s`, rewrite avg `2.845ms`, `syncFallbackRatio=38.6%`, spark `https://spark.lucko.me/3gRMdXzJoW`.
-   - Keep queue 16 as the documented default for memory safety; keep 32/64 as optional tuning for memory-rich servers watching `/antixray profile`.
+2. 26.1.x maintenance readiness.
+   - On `maintenance/26.1.x`, verify the latest 1.2.x build still compiles and runs after any cherry-picked fix.
+   - Keep Modrinth game versions at `26.1`, `26.1.1`, `26.1.2`.
+   - Do not pull in 26.2 loader metadata or dependency versions.
 
 3. Config UX polish.
-   - Consider an OP-only `/antixray config` read-only summary command before adding any mutating config command.
+   - Consider an OP-only `/antixray config` read-only summary command.
    - Keep edits/reload behavior conservative; avoid in-game config writes unless there is a clear user need.
 
-4. Public documentation refresh.
-   - Update README / Modrinth intro if new profiling data changes the story.
-   - Keep Fabric and NeoForge installation guidance explicit so users do not assume one jar supports both loaders.
-
-## Proposed 1.3.0 Plan
-
-Goal: ship a small, practical minor release only if the remaining work produces user-visible diagnostics or compatibility value. Otherwise keep the next items as developer maintenance without bumping `mod_version`.
-
-1. Finish platform cleanup.
-   - Audit Fabric/NeoForge entrypoint event wiring and command registration for remaining duplication.
-   - Keep loader-specific lifecycle hooks separate unless a shared abstraction removes real maintenance risk.
-   - Do not change mixin behavior or packet rewrite routing in this pass.
-
-2. Add read-only config inspection.
-   - Add an OP-only `/antixray config` command that prints the active global and per-dimension config summary.
-   - Reuse existing status/reload formatting where possible.
-   - Do not add in-game config mutation or file writes for 1.3.0.
-
-3. Improve tuning guidance from fresh profiling.
-   - Keep `async-queue-size=16` as the default memory-safe recommendation.
-   - Add concise docs explaining when to try `32` or `64`, using the 2026-06-10 Fabric/NeoForge 8-client profiling numbers.
-   - Keep spark links in project docs or release notes only if they clarify the recommendation.
-
-4. Release decision gate.
-   - If `/antixray config` lands, release as `1.3.0`.
-   - If only internal cleanup lands, do not release a new Modrinth version; commit and push as maintenance.
-   - Before release, run `.\gradlew.bat clean test :neoforge:test releaseAllLoaders --console=plain`, then dry-run `.\tools\publish-modrinth.ps1`.
+4. Profiling and pressure tuning.
+   - Keep `async-queue-size=16` as the documented default for memory safety.
+   - Keep `32` / `64` as optional tuning for memory-rich servers watching `/antixray profile`.
+   - Re-run dual-loader pressure tests after packet rewrite or async queue changes.
 
 ## Watch List
 
-- Minecraft `26.1.x` and NeoForge beta changes.
-  - Current NeoForge target is `26.1.2.30-beta`.
-  - Published NeoForge Minecraft range is `[26.1,26.1.3)` in metadata.
-- Paper anti-xray implementation changes.
-  - Paper can rewrite packet buffers in the native serialization path; this mod must snapshot enough state at the mod layer, so exact implementation parity is not expected.
-  - Last checked Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6` on 2026-06-10; unchanged from the 2026-06-06 parity baseline.
-  - Paper default hidden/replacement fields were unchanged at that HEAD, and there were no new upstream commits to review on `main`.
+- Minecraft `26.2` and NeoForge beta changes on `main`.
+- Minecraft `26.1.x` support regressions on `maintenance/26.1.x`.
+- Paper anti-xray implementation changes:
+  - Last checked Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6` on 2026-06-28.
+  - Exact implementation parity is not expected because Paper rewrites packet buffers in the native serialization path while this mod operates from the Fabric/NeoForge loader layer.
   - This project intentionally includes extra default hidden blocks for Nether protection: `ancient_debris`, `nether_quartz_ore`, `nether_gold_ore`.
-- Async queue defaults.
-  - Default `async-queue-size=16` prioritizes memory safety.
-  - Larger queues (`32` / `64`) can improve throughput but increase memory headroom requirements.
-- Network fake-player runner protocol support.
-  - `tools/mc-2612-load-runner.js` is protocol `775` / Minecraft `26.1.2` specific.
-  - Revalidate packet IDs before using it for a newer Minecraft target.
+- Network fake-player runner protocol support:
+  - `26.2`: protocol `776`.
+  - `26.1.2`: protocol `775`.
+  - Revalidate packet IDs before using it for newer Minecraft targets.
 
 ## Release Checklist
 
-1. Decide release scope.
-   - Patch: bug fixes, parity tweaks, diagnostics, small docs.
-   - Minor: package rename, broad loader abstraction, larger behavior changes.
+1. Confirm target branch.
+   - `main`: release `1.3.x+` for Minecraft `26.2`.
+   - `maintenance/26.1.x`: release `1.2.x` patches for Minecraft `26.1.x`.
 
 2. Update local files.
    - `gradle.properties`: `mod_version`.
    - `CHANGELOG.md`: version index.
    - `changelogs/<version>.zh-CN.md`.
    - `changelogs/<version>.en-US.md`.
+   - README and Modrinth intros if compatibility, commands, or user-visible behavior changed.
 
 3. Verify locally.
    - `.\gradlew.bat clean test :neoforge:test releaseAllLoaders --console=plain`
+   - `node --check tools\mc-2612-load-runner.js`
    - Check `build/release/` contains both loader jars.
    - Inspect jar metadata versions:
      - Fabric: `fabric.mod.json`.
@@ -136,10 +98,4 @@ Goal: ship a small, practical minor release only if the remaining work produces 
      - `<version>+neoforge`
    - Fabric version requires Fabric API dependency (`P7dR8mSH`).
    - NeoForge version currently has no extra Modrinth dependency.
-   - Game versions: `26.1`, `26.1.1`, `26.1.2` unless compatibility changes.
    - Never store the Modrinth token in repo, project memory, or Serena memory.
-
-5. Post-release record.
-   - Update `.codex/PROJECT_CONTEXT.md` with build command, jar names, version ids, and compatibility.
-   - Commit release files and release record.
-   - Confirm `git status --short` is clean.
