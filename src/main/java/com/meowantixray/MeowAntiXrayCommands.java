@@ -200,7 +200,7 @@ public final class MeowAntiXrayCommands {
     private static void sendCommandLines(CommandSourceStack source, List<String> lines, boolean broadcastToOps) {
         List<String> safeLines = lines.stream()
             .filter(Objects::nonNull)
-            .map(String::strip)
+            .map(line -> line.strip())
             .filter(line -> !line.isEmpty())
             .toList();
         if (safeLines.isEmpty()) {
@@ -222,7 +222,7 @@ public final class MeowAntiXrayCommands {
     static String formatCompactCommandOutput(List<String> lines) {
         return lines.stream()
             .filter(Objects::nonNull)
-            .map(String::strip)
+            .map(line -> line.strip())
             .filter(line -> !line.isEmpty())
             .reduce((left, right) -> left + " || " + right)
             .orElse("");

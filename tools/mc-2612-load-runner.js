@@ -5,47 +5,90 @@ const crypto = require('crypto')
 const net = require('net')
 const zlib = require('zlib')
 
-const PROTOCOL_VERSION = 775
-
-const CLIENTBOUND = {
-  LOGIN_SET_COMPRESSION: 0x03,
-  LOGIN_SUCCESS: 0x02,
-  LOGIN_COOKIE_REQUEST: 0x04,
-  CONFIG_FINISH: 0x03,
-  CONFIG_COOKIE_REQUEST: 0x04,
-  CONFIG_PLUGIN_MESSAGE: 0x05,
-  CONFIG_SELECT_KNOWN_PACKS: 0x0e,
-  CONFIG_PING: 0x13,
-  PLAY_CHUNK_BATCH_START: 0x0c,
-  PLAY_CHUNK_BATCH_FINISHED: 0x0b,
-  PLAY_KEEP_ALIVE: 0x2c,
-  PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
-  PLAY_PING: 0x3d,
-  PLAY_PLAYER_POSITION: 0x48
-}
-
-const SERVERBOUND = {
-  LOGIN_ACKNOWLEDGED: 0x03,
-  LOGIN_COOKIE_RESPONSE: 0x02,
-  CONFIG_CLIENT_INFORMATION: 0x00,
-  CONFIG_COOKIE_RESPONSE: 0x04,
-  CONFIG_PLUGIN_MESSAGE: 0x05,
-  CONFIG_SELECT_KNOWN_PACKS: 0x07,
-  CONFIG_PONG: 0x09,
-  CONFIG_FINISH_ACKNOWLEDGED: 0x03,
-  PLAY_ACCEPT_TELEPORTATION: 0x00,
-  PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
-  PLAY_TICK_END: 0x0d,
-  PLAY_KEEP_ALIVE: 0x1c,
-  PLAY_POSITION_LOOK: 0x1f,
-  PLAY_PONG: 0x2c,
-  PLAY_PLAYER_LOADED: 0x2c
+const PROTOCOLS = {
+  '26.1.2': {
+    protocolVersion: 775,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x04,
+      CONFIG_FINISH: 0x03,
+      CONFIG_COOKIE_REQUEST: 0x04,
+      CONFIG_PLUGIN_MESSAGE: 0x05,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x13,
+      CONFIG_CODE_OF_CONDUCT: -1,
+      PLAY_CHUNK_BATCH_START: 0x0c,
+      PLAY_CHUNK_BATCH_FINISHED: 0x0b,
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x02,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x04,
+      CONFIG_PLUGIN_MESSAGE: 0x05,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x09,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: -1,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2c,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
+  '26.2': {
+    protocolVersion: 776,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x13,
+      PLAY_CHUNK_BATCH_START: 0x0c,
+      PLAY_CHUNK_BATCH_FINISHED: 0x0b,
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  }
 }
 
 function parseArgs(argv) {
   const args = {
     host: '127.0.0.1',
     port: 25565,
+    mcVersion: '26.2',
     clients: 1,
     duration: 60,
     name: 'LoadBot',
@@ -78,6 +121,11 @@ function parseArgs(argv) {
         break
       case '--port':
         args.port = Number(next)
+        i++
+        break
+      case '--mc-version':
+      case '--minecraft-version':
+        args.mcVersion = next
         i++
         break
       case '--clients':
@@ -169,6 +217,7 @@ function parseArgs(argv) {
   }
 
   if (!Number.isInteger(args.port) || args.port < 1 || args.port > 65535) throw new Error('Invalid --port')
+  if (!PROTOCOLS[args.mcVersion]) throw new Error(`Unsupported --mc-version: ${args.mcVersion}`)
   if (!Number.isInteger(args.clients) || args.clients < 1 || args.clients > 200) throw new Error('Invalid --clients')
   if (!Number.isFinite(args.duration) || args.duration <= 0) throw new Error('Invalid --duration')
   if (!Number.isFinite(args.startX) || !Number.isFinite(args.startY) || !Number.isFinite(args.startZ)) throw new Error('Invalid start position')
@@ -185,7 +234,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Minecraft 26.1.2 network load runner
+  console.log(`Minecraft 26.x network load runner
 
 Usage:
   node tools/mc-2612-load-runner.js --clients 4 --duration 90
@@ -193,6 +242,7 @@ Usage:
 Options:
   --host <host>                 Server host, default 127.0.0.1
   --port <port>                 Server port, default 25565
+  --mc-version <version>        Protocol profile: 26.2 or 26.1.2, default 26.2
   --clients <n>                 Number of fake network clients, default 1
   --duration <seconds>          Test duration after launch, default 60
   --name <prefix>               Username prefix, default LoadBot
@@ -309,6 +359,9 @@ class LoadClient {
   constructor(index, args, metrics) {
     this.index = index
     this.args = args
+    this.protocol = PROTOCOLS[args.mcVersion]
+    this.clientbound = this.protocol.clientbound
+    this.serverbound = this.protocol.serverbound
     this.metrics = metrics
     this.username = `${args.name}${String(index + 1).padStart(2, '0')}`
     this.state = 'handshaking'
@@ -381,7 +434,7 @@ class LoadClient {
 
   sendHandshake(nextState) {
     this.send(0x00, Buffer.concat([
-      varInt(PROTOCOL_VERSION),
+      varInt(this.protocol.protocolVersion),
       mcString(this.args.host),
       uint16(this.args.port),
       varInt(nextState)
@@ -433,79 +486,83 @@ class LoadClient {
   }
 
   handleLoginPacket(id, payload) {
-    if (id === CLIENTBOUND.LOGIN_SET_COMPRESSION) {
+    if (id === this.clientbound.LOGIN_SET_COMPRESSION) {
       const threshold = readVarInt(payload, 0)
       if (threshold) this.compressionThreshold = threshold.value
       this.log(`compression=${this.compressionThreshold}`)
       return
     }
-    if (id === CLIENTBOUND.LOGIN_SUCCESS) {
+    if (id === this.clientbound.LOGIN_SUCCESS) {
       this.metrics.loggedIn++
       this.state = 'configuration'
-      this.send(SERVERBOUND.LOGIN_ACKNOWLEDGED)
-      this.send(SERVERBOUND.CONFIG_CLIENT_INFORMATION, clientInformationPayload())
+      this.send(this.serverbound.LOGIN_ACKNOWLEDGED)
+      this.send(this.serverbound.CONFIG_CLIENT_INFORMATION, clientInformationPayload())
       return
     }
-    if (id === CLIENTBOUND.LOGIN_COOKIE_REQUEST) {
+    if (id === this.clientbound.LOGIN_COOKIE_REQUEST) {
       const key = readVarInt(payload, 0)
-      if (key) this.send(SERVERBOUND.LOGIN_COOKIE_RESPONSE, Buffer.concat([varInt(key.value), bool(false)]))
+      if (key) this.send(this.serverbound.LOGIN_COOKIE_RESPONSE, Buffer.concat([varInt(key.value), bool(false)]))
       return
     }
     this.noise('login', id, payload)
   }
 
   handleConfigurationPacket(id, payload) {
-    if (id === CLIENTBOUND.CONFIG_FINISH) {
+    if (id === this.clientbound.CONFIG_FINISH) {
       this.state = 'play'
       this.playAt = Date.now()
       this.metrics.inPlay++
-      this.send(SERVERBOUND.CONFIG_FINISH_ACKNOWLEDGED)
+      this.send(this.serverbound.CONFIG_FINISH_ACKNOWLEDGED)
       if (!this.args.rconTeleport) this.moveTimer = setInterval(() => this.move(), this.args.moveInterval)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_COOKIE_REQUEST) {
-      this.send(SERVERBOUND.CONFIG_COOKIE_RESPONSE, payload)
+    if (id === this.clientbound.CONFIG_COOKIE_REQUEST) {
+      this.send(this.serverbound.CONFIG_COOKIE_RESPONSE, payload)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_PLUGIN_MESSAGE) {
-      this.send(SERVERBOUND.CONFIG_PLUGIN_MESSAGE, payload)
+    if (id === this.clientbound.CONFIG_PLUGIN_MESSAGE) {
+      this.noise('configuration custom payload', id, payload)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_SELECT_KNOWN_PACKS) {
-      this.send(SERVERBOUND.CONFIG_SELECT_KNOWN_PACKS, varInt(0))
+    if (id === this.clientbound.CONFIG_SELECT_KNOWN_PACKS) {
+      this.send(this.serverbound.CONFIG_SELECT_KNOWN_PACKS, varInt(0))
       return
     }
-    if (id === CLIENTBOUND.CONFIG_PING) {
-      this.send(SERVERBOUND.CONFIG_PONG)
+    if (id === this.clientbound.CONFIG_PING) {
+      this.send(this.serverbound.CONFIG_PONG, payload)
+      return
+    }
+    if (id === this.clientbound.CONFIG_CODE_OF_CONDUCT && this.serverbound.CONFIG_ACCEPT_CODE_OF_CONDUCT >= 0) {
+      this.send(this.serverbound.CONFIG_ACCEPT_CODE_OF_CONDUCT)
       return
     }
     this.noise('configuration', id, payload)
   }
 
   handlePlayPacket(id, payload) {
-    if (id === CLIENTBOUND.PLAY_KEEP_ALIVE) {
+    if (id === this.clientbound.PLAY_KEEP_ALIVE) {
       this.keepAlives++
-      this.send(SERVERBOUND.PLAY_KEEP_ALIVE, payload)
+      this.send(this.serverbound.PLAY_KEEP_ALIVE, payload)
       return
     }
-    if (id === CLIENTBOUND.PLAY_PING) {
-      this.send(SERVERBOUND.PLAY_PONG, payload)
+    if (id === this.clientbound.PLAY_PING) {
+      this.send(this.serverbound.PLAY_PONG, payload)
       return
     }
-    if (id === CLIENTBOUND.PLAY_PLAYER_POSITION) {
+    if (id === this.clientbound.PLAY_PLAYER_POSITION) {
       this.acceptPosition(payload)
       return
     }
-    if (id === CLIENTBOUND.PLAY_CHUNK_BATCH_START) {
+    if (id === this.clientbound.PLAY_CHUNK_BATCH_START) {
       this.batches++
       this.metrics.batches++
       return
     }
-    if (id === CLIENTBOUND.PLAY_CHUNK_BATCH_FINISHED) {
-      this.send(SERVERBOUND.PLAY_CHUNK_BATCH_RECEIVED, float32(20))
+    if (id === this.clientbound.PLAY_CHUNK_BATCH_FINISHED) {
+      this.send(this.serverbound.PLAY_CHUNK_BATCH_RECEIVED, float32(20))
       return
     }
-    if (id === CLIENTBOUND.PLAY_LEVEL_CHUNK_WITH_LIGHT) {
+    if (id === this.clientbound.PLAY_LEVEL_CHUNK_WITH_LIGHT) {
       this.chunks++
       this.metrics.chunks++
       return
@@ -531,8 +588,8 @@ class LoadClient {
     offset += 4
     this.pitch = payload.readFloatBE(offset)
 
-    this.send(SERVERBOUND.PLAY_ACCEPT_TELEPORTATION, varInt(teleportId.value))
-    if (!this.canMove) this.send(SERVERBOUND.PLAY_PLAYER_LOADED)
+    this.send(this.serverbound.PLAY_ACCEPT_TELEPORTATION, varInt(teleportId.value))
+    if (!this.canMove) this.send(this.serverbound.PLAY_PLAYER_LOADED)
     this.canMove = true
     this.positionCorrections++
     this.metrics.positionPackets++
@@ -544,7 +601,7 @@ class LoadClient {
 
   reportPosition() {
     if (!this.canMove) return
-    this.send(SERVERBOUND.PLAY_POSITION_LOOK, Buffer.concat([
+    this.send(this.serverbound.PLAY_POSITION_LOOK, Buffer.concat([
       float64(this.x),
       float64(this.y),
       float64(this.z),
@@ -552,7 +609,7 @@ class LoadClient {
       float32(this.pitch),
       uint8(1)
     ]))
-    this.send(SERVERBOUND.PLAY_TICK_END)
+    this.send(this.serverbound.PLAY_TICK_END)
   }
 
   move() {

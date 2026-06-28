@@ -8,6 +8,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.metadata.ModOrigin;
 import net.minecraft.server.level.ServerPlayer;
+import org.eclipse.jdt.annotation.NonNull;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -44,9 +45,9 @@ final class FabricModPlatform implements ModPlatform {
     }
 
     @Override
-    public Collection<LoadedModInfo> loadedMods() {
+    public Collection<@NonNull LoadedModInfo> loadedMods() {
         Path modsDir = configDir().resolveSibling("mods").normalize();
-        List<LoadedModInfo> loaded = new ArrayList<>();
+        List<@NonNull LoadedModInfo> loaded = new ArrayList<>();
         for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
             Path first = null;
             ModOrigin origin = mod.getOrigin();

@@ -8,6 +8,7 @@ import com.meowantixray.platform.PlatformSupport;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
+import org.eclipse.jdt.annotation.NonNull;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -50,9 +51,9 @@ final class NeoForgeModPlatform implements ModPlatform {
     }
 
     @Override
-    public Collection<LoadedModInfo> loadedMods() {
+    public Collection<@NonNull LoadedModInfo> loadedMods() {
         Path modsDir = gameDir().resolve("mods").toAbsolutePath().normalize();
-        List<LoadedModInfo> loaded = new ArrayList<>();
+        List<@NonNull LoadedModInfo> loaded = new ArrayList<>();
         for (var mod : ModList.get().getMods()) {
             Path origin = null;
             try {

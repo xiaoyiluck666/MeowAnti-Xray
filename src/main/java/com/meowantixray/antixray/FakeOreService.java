@@ -3132,7 +3132,7 @@ public final class FakeOreService {
         }
         List<DimensionStatus> dimensions = new ArrayList<>();
         List<String> keys = new ArrayList<>(dimensionPalettes.keySet());
-        keys.sort(String::compareToIgnoreCase);
+        keys.sort((left, right) -> left.compareToIgnoreCase(right));
         for (String key : keys) {
             Palette palette = dimensionPalettes.get(key);
             if (palette == null) {
