@@ -425,6 +425,13 @@ class FakeOreServiceTest {
     }
 
     @Test
+    void paperRuntimeRandomSeedNeverReturnsZero() {
+        for (int i = 0; i < 256; i++) {
+            assertTrue(FakeOreService.paperRuntimeRandomSeed() != 0);
+        }
+    }
+
+    @Test
     void shutdownAsyncExecutorReleasesAndRecreatesRewriteExecutor() throws Exception {
         FakeOreService service = new FakeOreService();
         ExecutorService first = ensureChunkRewriteExecutor(service);
