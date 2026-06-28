@@ -2,6 +2,11 @@
 
 Version-specific changelogs are stored in `changelogs/`.
 
+## 1.3.1
+
+- 中文：[changelogs/1.3.1.zh-CN.md](changelogs/1.3.1.zh-CN.md)
+- English: [changelogs/1.3.1.en-US.md](changelogs/1.3.1.en-US.md)
+
 ## 1.3.0
 
 - 中文：[changelogs/1.3.0.zh-CN.md](changelogs/1.3.0.zh-CN.md)

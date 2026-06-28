@@ -28,7 +28,7 @@ This project was split from `MeowConsole` and now contains only anti-xray functi
 
 ## 🌐 Compatibility
 
-Version `1.3.0` targets Minecraft `26.2` and Java `25`:
+Version `1.3.1` targets Minecraft `26.2` and Java `25`:
 
 - Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
 - NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
@@ -54,8 +54,8 @@ Meow Anti-Xray has been tested with real exploration and heavy chunk-loading wor
 
 | Scenario | Result |
 | --- | --- |
-| 🧪 Fabric 26.2 / 1.3.0 with 8 network fake players | `32,893` chunks processed in `92s`, about `357.49 chunks/s`, `0` client errors |
-| 🔥 NeoForge 26.2 / 1.3.0 with 8 network fake players | `35,593` chunks processed in `92s`, about `386.86 chunks/s`, `0` client errors |
+| 🧪 Fabric 26.2 / 1.3.0 baseline with 8 network fake players | `32,893` chunks processed in `92s`, about `357.49 chunks/s`, `0` client errors |
+| 🔥 NeoForge 26.2 / 1.3.0 baseline with 8 network fake players | `35,593` chunks processed in `92s`, about `386.86 chunks/s`, `0` client errors |
 | 🧪 Fabric real single-player exploration | Stable `20.00 TPS`, median MSPT `3.31ms`, with `meowantixray` taking about `3.55%` in the server-thread mods view |
 | 🔥 NeoForge stress test with 8 network fake players | `36,233` chunks processed in `91s`, about `398.06 chunks/s`, `0` client errors |
 | 🚀 Higher-throughput async queue test | With `async-queue-size=64`, `38,037` chunks processed in `91s`, about `417.92 chunks/s`, `0` client errors |

@@ -15,7 +15,7 @@ Meow Anti-Xray is a server-side Minecraft mod focused on Paper-like anti-xray pr
 
 ## Compatibility
 
-Meow Anti-Xray `1.3.0` targets Minecraft `26.2` and Java `25`.
+Meow Anti-Xray `1.3.1` targets Minecraft `26.2` and Java `25`.
 
 - Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
 - NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
