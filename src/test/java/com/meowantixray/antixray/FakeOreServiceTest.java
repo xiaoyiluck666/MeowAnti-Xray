@@ -288,6 +288,17 @@ class FakeOreServiceTest {
     }
 
     @Test
+    void solidStateLookupMatchesPaperTransparentOverrides() {
+        boolean[] lookup = FakeOreService.buildSolidStateLookup(true);
+
+        assertFalse(lookup[Block.BLOCK_STATE_REGISTRY.getId(Blocks.SPAWNER.defaultBlockState())]);
+        assertFalse(lookup[Block.BLOCK_STATE_REGISTRY.getId(Blocks.BARRIER.defaultBlockState())]);
+        assertFalse(lookup[Block.BLOCK_STATE_REGISTRY.getId(Blocks.SHULKER_BOX.defaultBlockState())]);
+        assertFalse(lookup[Block.BLOCK_STATE_REGISTRY.getId(Blocks.SLIME_BLOCK.defaultBlockState())]);
+        assertFalse(lookup[Block.BLOCK_STATE_REGISTRY.getId(Blocks.MANGROVE_ROOTS.defaultBlockState())]);
+    }
+
+    @Test
     void shouldMaskStateMatchesHiddenAndReplacementPassSemantics() {
         assertTrue(FakeOreService.shouldMaskState(true, true, true, false));
         assertFalse(FakeOreService.shouldMaskState(true, true, false, true));
