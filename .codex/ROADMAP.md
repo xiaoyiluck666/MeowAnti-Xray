@@ -60,6 +60,7 @@ Do not add in-game configuration writes, a general server console, or features o
 **Goal:** turn async/backpressure tuning into a measured compatibility contract.
 
 - Baseline tooling is now defined by `tools/capture-pressure-sample.ps1`, structured runner JSON output, and `reports/1.5.0-pressure-matrix.md`; raw samples stay under ignored `build/pressure-results/`.
+- The clean-worktree queue `16` smoke gate now passes on the same config SHA256: Fabric 2 clients / 25s / 7127 chunks / 0 errors, NeoForge 2 clients / 25s / 6823 chunks / 0 errors; both finish with inFlight=0 and visible rewrite activity.
 - Establish a versioned pressure-test matrix for Fabric and NeoForge on the same mainline build: 2-client smoke and 8-client 90-second spectator route, with default queue `16` first. Record chunks, client errors, `rewriteTasks`, rewrite timings, fallback ratio, heap and server tick health.
 - Close the current evidence gap by running the full Fabric 26.2 route equivalent to the passing NeoForge route. Treat `syncFallbackRatio=44.0%` as an overload signal to investigate, not as packet loss or an automatic reason to raise the default.
 - Compare queue sizes `0`, `16`, `32`, and `64` only in a controlled environment. Keep `16` unless both loaders show a clear benefit that does not regress memory headroom or tick health.
