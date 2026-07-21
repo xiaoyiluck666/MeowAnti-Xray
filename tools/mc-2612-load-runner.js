@@ -2,7 +2,9 @@
 'use strict'
 
 const crypto = require('crypto')
+const fs = require('fs')
 const net = require('net')
+const path = require('path')
 const zlib = require('zlib')
 
 const PROTOCOLS = {
@@ -148,6 +150,7 @@ function parseArgs(argv) {
     teleportInterval: 2500,
     teleportStep: 192,
     teleportY: null,
+    jsonOutput: '',
     verbose: false
   }
 
@@ -250,6 +253,10 @@ function parseArgs(argv) {
         args.teleportY = Number(next)
         i++
         break
+      case '--json-output':
+        args.jsonOutput = next
+        i++
+        break
       case '--verbose':
         args.verbose = true
         break
@@ -278,6 +285,7 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.teleportInterval) || args.teleportInterval < 250) throw new Error('Invalid --teleport-interval')
   if (!Number.isFinite(args.teleportStep) || args.teleportStep <= 0) throw new Error('Invalid --teleport-step')
   if (args.teleportY !== null && !Number.isFinite(args.teleportY)) throw new Error('Invalid --teleport-y')
+  if (args.jsonOutput) args.jsonOutput = path.resolve(args.jsonOutput)
   if (!args.rconHost) args.rconHost = args.host
   return args
 }
@@ -312,6 +320,7 @@ Options:
   --teleport-interval <ms>      RCON teleport interval, default 2500
   --teleport-step <blocks>      RCON route step, default 192
   --teleport-y <number>         RCON teleport Y, default current spawn Y
+  --json-output <path>          Write the final structured result as JSON
   --verbose                     Log protocol noise
 `)
 }
@@ -790,6 +799,7 @@ class RconClient {
 
 async function main() {
   const args = parseArgs(process.argv)
+  const runStartedAt = new Date()
   const metrics = {
     connected: 0,
     loggedIn: 0,
@@ -837,28 +847,77 @@ async function main() {
 
   await sleep(args.duration * 1000)
   stopping = true
+  const measurementCompletedAt = Date.now()
+  const measuredMetrics = { ...metrics }
   clearInterval(progressTimer)
   if (teleportTimer) clearInterval(teleportTimer)
+  const rconSummary = rcon ? await collectRconSummary(rcon, metrics) : null
   for (const client of clients) client.close()
   if (rcon) rcon.close()
   await sleep(1000)
 
-  const elapsed = (Date.now() - startedAt) / 1000
+  const elapsed = (measurementCompletedAt - startedAt) / 1000
   const final = {
+    schemaVersion: 1,
+    startedAt: runStartedAt.toISOString(),
+    measurementStartedAt: new Date(startedAt).toISOString(),
+    measurementCompletedAt: new Date(measurementCompletedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    minecraftProfile: args.mcVersion,
+    protocolVersion: PROTOCOLS[args.mcVersion].protocolVersion,
+    host: args.host,
+    port: args.port,
+    requestedDurationSeconds: args.duration,
     seconds: Number(elapsed.toFixed(1)),
     clients: args.clients,
-    connected: metrics.connected,
-    inPlay: metrics.inPlay,
-    moves: metrics.moves,
-    teleports: metrics.teleports,
-    positionPackets: metrics.positionPackets,
-    chunks: metrics.chunks,
-    batches: metrics.batches,
+    connected: measuredMetrics.connected,
+    inPlay: measuredMetrics.inPlay,
+    moves: measuredMetrics.moves,
+    teleports: measuredMetrics.teleports,
+    positionPackets: measuredMetrics.positionPackets,
+    chunks: measuredMetrics.chunks,
+    batches: measuredMetrics.batches,
     errors: metrics.errors,
-    chunksPerSecond: Number((metrics.chunks / elapsed).toFixed(2))
+    chunksPerSecond: Number((measuredMetrics.chunks / elapsed).toFixed(2)),
+    route: {
+      mode: args.rconTeleport ? 'rcon-teleport' : 'movement',
+      gamemode: args.gamemode || null,
+      teleportIntervalMs: args.rconTeleport ? args.teleportInterval : null,
+      teleportStep: args.rconTeleport ? args.teleportStep : null,
+      teleportY: args.rconTeleport ? args.teleportY : null,
+      sessionId: args.reuseNames ? null : args.sessionId,
+      reusedNames: args.reuseNames
+    },
+    rcon: rconSummary
   }
   console.log(`[final] ${JSON.stringify(final)}`)
+  if (args.jsonOutput) writeJsonResult(args.jsonOutput, final)
   if (metrics.inPlay === 0 || metrics.chunks === 0 || metrics.errors > 0) process.exitCode = 1
+}
+
+async function collectRconSummary(rcon, metrics) {
+  try {
+    const status = await rcon.command('antixray status')
+    const config = await rcon.command('antixray config')
+    const profile = await rcon.command('antixray profile')
+    return {
+      status: status.body,
+      config: config.body,
+      profile: profile.body
+    }
+  } catch (error) {
+    metrics.errors++
+    console.error(`[rcon] summary error: ${error.message}`)
+    return { error: error.message }
+  }
+}
+
+function writeJsonResult(outputPath, result) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+  const temporaryPath = `${outputPath}.tmp-${process.pid}`
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8')
+  fs.renameSync(temporaryPath, outputPath)
+  console.log(`[json] wrote ${outputPath}`)
 }
 
 function sleep(ms) {
