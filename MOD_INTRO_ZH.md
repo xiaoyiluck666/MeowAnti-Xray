@@ -14,7 +14,7 @@
 - 🔌 **专为 Mod 服务端维护**：Fabric 与 NeoForge 共用核心逻辑，尽量保持配置、行为和性能策略一致。
 - 🧱 **更安全的假矿处理**：箱子、末影箱等方块实体不会被用作假矿候选，减少客户端显示异常和误导性画面。
 - ⚡ **高压跑图更稳**：异步区块包重写配合队列背压，避免大量区块快照无限堆积导致内存暴涨。
-- 📊 **服主更容易看懂当前状态**：`/antixray status` 会显示运行状态、async 容量、配置路径和每个维度的 hidden/replacement 计数；`/antixray reload` 会返回配置变化 diff；`/antixray inspect` 可以直接解释某个方块为什么会或不会被伪装，并稳定显示标准维度 ID。控制台和 RCON 里也更容易读。
+- 📊 **配置可检查、失败不误伤**：`/antixray config` 显示当前生效配置，`/antixray validate` 在不应用配置的前提下检查磁盘文件，`/antixray reload` 只有验证通过才原子生效；失败时保留原文件与最后一次有效防护。
 
 ## 🧩 核心功能
 
@@ -28,7 +28,7 @@
 
 ## 🌐 版本兼容
 
-当前 `1.3.1` 版本面向 Minecraft `26.2` 与 Java `25`：
+当前 `1.4.0` 版本面向 Minecraft `26.2` 与 Java `25`：
 
 - Fabric：Fabric Loader `>=0.19.3`，Fabric API `>=0.153.0+26.2`，Minecraft `>=26.2 <26.3`。
 - NeoForge：NeoForge `>=26.2.0.7-beta`，Minecraft `[26.2,26.3)`。
@@ -87,7 +87,7 @@ config/meowantixray.yml
 ```
 
 4. 根据服务器类型调整隐藏方块、替换方块、高度范围和异步参数。
-5. 使用 `/antixray reload` 重载配置，使用 `/antixray status` 与 `/antixray profile` 检查运行状态。
+5. 先用 `/antixray validate` 预检，再用 `/antixray reload` 应用；使用 `/antixray status` 与 `/antixray profile` 检查运行状态。
 
 常用配置示例：
 
@@ -113,6 +113,8 @@ anti-xray:
 
 ```text
 /antixray status
+/antixray config
+/antixray validate
 /antixray reload
 /antixray profile
 /antixray debug <world> <x> <y> <z>

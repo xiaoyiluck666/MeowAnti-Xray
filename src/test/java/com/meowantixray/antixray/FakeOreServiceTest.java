@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FakeOreServiceTest {
@@ -123,6 +124,26 @@ class FakeOreServiceTest {
     }
 
     @Test
+    void configDetailsExposeReadOnlyEffectiveConfig() throws Exception {
+        FakeOreService service = new FakeOreService();
+        setFakeConfigPath(createTempConfig("anti-xray:\n  hidden-blocks:\n    - minecraft:diamond_ore\n  replacement-blocks:\n    - minecraft:stone\n"));
+        setField(service, "globalPalette", createPalette(true, 2, 64, 3, 2, true, 2));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dimensionPalettes = (Map<String, Object>) getField(service, "dimensionPalettes");
+        dimensionPalettes.put("minecraft:overworld", createPalette(true, 2, 64, 3, 2, true, 2));
+        dimensionPalettes.put("minecraft:the_nether", createPalette(false, 1, 32, 1, 1, false, 1));
+        setConfig(service, createConfig(true, 2, 8));
+
+        List<String> lines = service.configDetails();
+
+        assertTrue(lines.stream().anyMatch(line -> line.contains("config-path:")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("global: enabled=true, mode=2, max-block-height=64, hidden=3, replacement=2, update-radius=2")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("permission: use-permission=true, bypass-permission=paper.antixray.bypass")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("async: enabled=true, workerThreads=2, queueSize=8, capacity=10")));
+        assertTrue(lines.stream().anyMatch(line -> line.contains("dimension minecraft:the_nether: enabled=false, mode=1, max-block-height=32, hidden=1, replacement=1, update-radius=1, use-permission=false")));
+    }
+
+    @Test
     void reloadReportListsChangedRuntimeFields() throws Exception {
         FakeOreService service = new FakeOreService();
         setField(service, "globalPalette", createPalette(true, 2, 64, 3, 2, true, 2));
@@ -159,6 +180,52 @@ class FakeOreServiceTest {
         assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("engine-mode: 2 -> 1")));
         assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("async-worker-threads: 2 -> 3")));
         assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("dimension minecraft:overworld enabled: true -> false")));
+        assertTrue(report.applied());
+    }
+
+    @Test
+    void validateConfigReportsUnknownBlocksWithoutApplying() throws Exception {
+        Path path = createTempConfig("""
+            anti-xray:
+              hidden-blocks:
+                - minecraft:not_a_real_ore
+              replacement-blocks:
+                - minecraft:stone
+            """);
+        setFakeConfigPath(path);
+        FakeOreService service = new FakeOreService();
+
+        FakeOreService.ValidationReport report = service.validateConfig();
+
+        assertFalse(report.valid());
+        assertTrue(report.lines().stream().anyMatch(line -> line.contains("unknown block id: minecraft:not_a_real_ore")));
+        assertEquals("validation: invalid, errors=1, warnings=0", report.lines().getFirst());
+    }
+
+    @Test
+    void failedReloadRetainsLastKnownGoodRuntimeAndOriginalFile() throws Exception {
+        FakeOreService service = new FakeOreService();
+        Object activePalette = createPalette(true, 2, 64, 3, 2, true, 2);
+        setField(service, "globalPalette", activePalette);
+        setConfig(service, createConfig(true, 2, 8));
+        String invalid = """
+            anti-xray:
+              enabled: maybe
+              hidden-blocks:
+                - minecraft:diamond_ore
+              replacement-blocks:
+                - minecraft:stone
+            """;
+        Path path = createTempConfig(invalid);
+        setFakeConfigPath(path);
+
+        FakeOreService.ReloadReport report = service.reloadConfigWithSummary();
+
+        assertFalse(report.applied());
+        assertSame(activePalette, getField(service, "globalPalette"));
+        assertEquals(invalid, Files.readString(path));
+        assertTrue(report.changeLines().stream().anyMatch(line -> line.contains("last-known-good")));
+        assertTrue(report.issueLines().stream().anyMatch(line -> line.contains("expected true or false")));
     }
 
     @Test

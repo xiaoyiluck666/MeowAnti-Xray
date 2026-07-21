@@ -14,8 +14,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class FakeOreConfig {
+    private static final Pattern RESOURCE_ID = Pattern.compile("(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+");
+    private static final Set<String> BOOLEAN_KEYS = Set.of(
+        "enabled", "enforce-engine-mode-2", "only-obfuscate-hidden-blocks",
+        "mode2-obfuscate-replacement-blocks", "guarantee-hide-all-hidden-blocks",
+        "lava-obscures", "use-permission", "async-chunk-rewrite"
+    );
+    private static final Map<String, IntRange> INTEGER_KEYS = Map.of(
+        "engine-mode", new IntRange(1, 3),
+        "max-block-height", new IntRange(-64, 320),
+        "async-worker-threads", new IntRange(1, 4),
+        "async-queue-size", new IntRange(0, 1024),
+        "update-radius", new IntRange(0, 2),
+        "update-interval-ticks", new IntRange(1, 100),
+        "max-blocks-per-chunk", new IntRange(64, 262144)
+    );
     public boolean enabled = true;
     public int engineMode = 2;
     public boolean enforceEngineMode2 = true;
@@ -57,35 +73,207 @@ public final class FakeOreConfig {
     }
 
     static FakeOreConfig loadOrCreate(Path path) {
-        FakeOreConfig config = new FakeOreConfig();
-        config.setDimensionDefaults();
-        if (!Files.exists(path)) {
-            config.writeConfig(path);
-            config.loadSummary = "generated default config at " + path;
+        LoadResult result = loadCandidate(path, true);
+        FakeOreConfig config = result.config();
+        if (!result.valid()) {
             return config;
         }
+        config.supplementAfterValidation(path, result.sourceLines());
+        return config;
+    }
+
+    static LoadResult loadCandidate() {
+        return loadCandidate(PlatformHelper.configDir().resolve("meowantixray.yml"), false);
+    }
+
+    static LoadResult loadCandidate(Path path, boolean createMissing) {
+        FakeOreConfig config = defaults();
+        List<ValidationIssue> issues = new ArrayList<>();
+        if (!Files.exists(path)) {
+            if (!createMissing) {
+                issues.add(ValidationIssue.error(0, "file", "configuration file does not exist"));
+                config.loadSummary = "config missing, active configuration unchanged: " + path;
+                return new LoadResult(config, List.copyOf(issues), List.of(), false, false);
+            }
+            try {
+                config.writeConfigChecked(path);
+                config.loadSummary = "generated default config at " + path;
+                return new LoadResult(config, List.of(), config.renderConfigLines(), true, true);
+            } catch (IOException exception) {
+                issues.add(ValidationIssue.error(0, "file", "could not create default config: " + exception.getMessage()));
+                config.loadSummary = "failed to create default config, using in-memory defaults: " + path;
+                MeowAntiXrayMod.LOGGER.warn("Meow Anti-Xray default config creation failed: {}", path, exception);
+                return new LoadResult(config, List.copyOf(issues), List.of(), false, false);
+            }
+        }
+
         try {
             List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+            issues.addAll(validateSyntax(lines));
             config.read(lines);
-            boolean supplemented = false;
-            try {
-                supplemented = config.supplementMissingKeys(path, lines);
-            } catch (Exception supplementException) {
-                MeowAntiXrayMod.LOGGER.warn("Meow Anti-Xray config supplement failed, keeping existing file: {}", path, supplementException);
-            }
-            config.loadSummary = supplemented
-                ? "loaded config from " + path + " and supplemented missing keys"
-                : "loaded config from " + path;
+            boolean valid = issues.stream().noneMatch(issue -> issue.isError());
+            config.loadSummary = valid
+                ? "loaded candidate config from " + path
+                : "invalid config, active configuration unchanged: " + path;
+            return new LoadResult(config, List.copyOf(issues), List.copyOf(lines), valid, false);
         } catch (Exception exception) {
-            config.loadSummary = "failed to read config, using defaults: " + path;
-            MeowAntiXrayMod.LOGGER.warn("Meow Anti-Xray config load failed, using defaults: {}", path, exception);
-            config.writeConfig(path);
+            issues.add(ValidationIssue.error(0, "file", "could not read config: " + exception.getMessage()));
+            config.loadSummary = "failed to read config, active configuration unchanged: " + path;
+            MeowAntiXrayMod.LOGGER.warn("Meow Anti-Xray config read failed, keeping existing file: {}", path, exception);
+            return new LoadResult(config, List.copyOf(issues), List.of(), false, false);
         }
+    }
+
+    static FakeOreConfig defaults() {
+        FakeOreConfig config = new FakeOreConfig();
+        config.setDimensionDefaults();
         return config;
     }
 
     public String loadSummary() {
         return loadSummary;
+    }
+
+    void markLoadSummary(String summary) {
+        this.loadSummary = summary;
+    }
+
+    boolean supplementAfterValidation(Path path, List<String> lines) {
+        try {
+            boolean supplemented = supplementMissingKeys(path, lines);
+            loadSummary = supplemented
+                ? "loaded config from " + path + " and supplemented missing keys"
+                : "loaded config from " + path;
+            return supplemented;
+        } catch (Exception exception) {
+            loadSummary = "loaded config from " + path + "; missing keys were not supplemented";
+            MeowAntiXrayMod.LOGGER.warn("Meow Anti-Xray config supplement failed, keeping existing file: {}", path, exception);
+            return false;
+        }
+    }
+
+    private static List<ValidationIssue> validateSyntax(List<String> lines) {
+        List<ValidationIssue> issues = new ArrayList<>();
+        String listScope = "";
+        for (int index = 0; index < lines.size(); index++) {
+            String raw = index == 0 ? stripUtf8Bom(lines.get(index)) : lines.get(index);
+            int lineNumber = index + 1;
+            if (raw.indexOf('\t') >= 0) {
+                issues.add(ValidationIssue.error(lineNumber, "yaml", "tabs are not supported; use spaces for indentation"));
+            }
+            if (hasUnclosedQuote(raw)) {
+                issues.add(ValidationIssue.error(lineNumber, "yaml", "unclosed quoted value"));
+            }
+            String withoutComment = stripCommentStatic(raw);
+            if (withoutComment.isBlank()) {
+                continue;
+            }
+            int indent = countIndentStatic(withoutComment);
+            String line = withoutComment.trim();
+            if (line.startsWith("- ")) {
+                String item = stripYamlQuotesStatic(line.substring(2).trim());
+                if (("hidden-blocks".equals(listScope) || "replacement-blocks".equals(listScope))
+                    && (!RESOURCE_ID.matcher(item).matches())) {
+                    issues.add(ValidationIssue.error(lineNumber, listScope, "invalid block id: " + item));
+                }
+                continue;
+            }
+            if (!line.contains(":")) {
+                issues.add(ValidationIssue.error(lineNumber, "yaml", "expected key: value"));
+                continue;
+            }
+            if (line.endsWith(":")) {
+                String key = line.substring(0, line.length() - 1).trim();
+                if ("hidden-blocks".equals(key) || "replacement-blocks".equals(key)) {
+                    listScope = key;
+                } else {
+                    listScope = "";
+                    if (indent == 4 && !"dimension-settings".equals(key) && !RESOURCE_ID.matcher(stripYamlQuotesStatic(key)).matches()) {
+                        issues.add(ValidationIssue.error(lineNumber, "dimension", "invalid dimension id: " + key));
+                    }
+                }
+                continue;
+            }
+            listScope = "";
+            int colon = line.indexOf(':');
+            String key = line.substring(0, colon).trim().toLowerCase(Locale.ROOT);
+            String value = line.substring(colon + 1).trim();
+            if (("hidden-blocks".equals(key) || "replacement-blocks".equals(key))
+                && (value.startsWith("[") != value.endsWith("]"))) {
+                issues.add(ValidationIssue.error(lineNumber, key, "malformed inline list"));
+                continue;
+            }
+            if (BOOLEAN_KEYS.contains(key)) {
+                String parsed = stripYamlQuotesStatic(value);
+                if (!"true".equalsIgnoreCase(parsed) && !"false".equalsIgnoreCase(parsed)) {
+                    issues.add(ValidationIssue.error(lineNumber, key, "expected true or false, got: " + value));
+                }
+                continue;
+            }
+            IntRange range = INTEGER_KEYS.get(key);
+            if (range != null) {
+                try {
+                    int parsed = Integer.parseInt(stripYamlQuotesStatic(value));
+                    if (parsed < range.min() || parsed > range.max()) {
+                        issues.add(ValidationIssue.warning(lineNumber, key,
+                            "value " + parsed + " will be clamped to " + range.min() + ".." + range.max()));
+                    }
+                } catch (NumberFormatException exception) {
+                    issues.add(ValidationIssue.error(lineNumber, key, "expected an integer, got: " + value));
+                }
+            }
+        }
+        return issues;
+    }
+
+    private static String stripUtf8Bom(String line) {
+        return !line.isEmpty() && line.charAt(0) == '\uFEFF' ? line.substring(1) : line;
+    }
+
+    private static boolean hasUnclosedQuote(String line) {
+        char quote = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if ((c == '"' || c == '\'') && (i == 0 || line.charAt(i - 1) != '\\')) {
+                quote = quote == 0 ? c : (quote == c ? 0 : quote);
+            } else if (c == '#' && quote == 0) {
+                break;
+            }
+        }
+        return quote != 0;
+    }
+
+    private static String stripCommentStatic(String line) {
+        char quote = 0;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if ((c == '"' || c == '\'') && (i == 0 || line.charAt(i - 1) != '\\')) {
+                quote = quote == 0 ? c : (quote == c ? 0 : quote);
+            } else if (c == '#' && quote == 0) {
+                return line.substring(0, i);
+            }
+        }
+        return line;
+    }
+
+    private static int countIndentStatic(String line) {
+        int count = 0;
+        while (count < line.length() && line.charAt(count) == ' ') {
+            count++;
+        }
+        return count;
+    }
+
+    private static String stripYamlQuotesStatic(String value) {
+        if (value.length() < 2) {
+            return value;
+        }
+        char first = value.charAt(0);
+        char last = value.charAt(value.length() - 1);
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+            return value.substring(1, value.length() - 1).replace("\\" + first, String.valueOf(first));
+        }
+        return value;
     }
 
     private boolean supplementMissingKeys(Path path, List<String> lines) throws IOException {
@@ -531,9 +719,13 @@ public final class FakeOreConfig {
 
     void writeConfig(Path path) {
         try {
-            writeLines(path, renderConfigLines());
+            writeConfigChecked(path);
         } catch (IOException ignored) {
         }
+    }
+
+    private void writeConfigChecked(Path path) throws IOException {
+        writeLines(path, renderConfigLines());
     }
 
     private List<String> renderConfigLines() {
@@ -763,6 +955,37 @@ public final class FakeOreConfig {
     }
 
     private record InsertFragment(int index, List<String> lines) {
+    }
+
+    record LoadResult(
+        FakeOreConfig config,
+        List<ValidationIssue> issues,
+        List<String> sourceLines,
+        boolean valid,
+        boolean created
+    ) {
+    }
+
+    record ValidationIssue(Severity severity, int line, String scope, String message) {
+        static ValidationIssue error(int line, String scope, String message) {
+            return new ValidationIssue(Severity.ERROR, line, scope, message);
+        }
+
+        static ValidationIssue warning(int line, String scope, String message) {
+            return new ValidationIssue(Severity.WARNING, line, scope, message);
+        }
+
+        boolean isError() {
+            return severity == Severity.ERROR;
+        }
+    }
+
+    enum Severity {
+        ERROR,
+        WARNING
+    }
+
+    private record IntRange(int min, int max) {
     }
 
     private static final class DimensionBlockInfo {

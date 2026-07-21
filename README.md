@@ -8,14 +8,14 @@ Meow Anti-Xray is a server-side Minecraft mod focused on Paper-like anti-xray pr
 - Per-dimension hidden ore and replacement block configuration.
 - Reveal updates when players mine blocks, start breaking blocks, or explosions change nearby blocks.
 - Optional async chunk packet rewrite with lightweight profiling counters.
-- Expanded diagnostics for server owners: richer `/antixray status`, reload change summaries, and `/antixray inspect`.
+- Safe configuration workflow for server owners: read-only `/antixray config`, dry-run `/antixray validate`, and atomic `/antixray reload` that retains the last-known-good protection on failure.
 - Cleaner console and RCON command output, with stable `minecraft:*` dimension ids in inspect results.
 - Async Modrinth update checks on server startup, with the latest result shown in `/antixray status`.
-- Server commands: `/antixray`, `/antixray status`, `/antixray reload`, `/antixray profile`, `/antixray debug <world> <x> <y> <z>`, `/antixray inspect <world> <x> <y> <z>`.
+- Server commands: `/antixray`, `/antixray status`, `/antixray config`, `/antixray validate`, `/antixray reload`, `/antixray profile`, `/antixray debug <world> <x> <y> <z>`, `/antixray inspect <world> <x> <y> <z>`.
 
 ## Compatibility
 
-Meow Anti-Xray `1.3.1` targets Minecraft `26.2` and Java `25`.
+Meow Anti-Xray `1.4.0` targets Minecraft `26.2` and Java `25`.
 
 - Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
 - NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
@@ -55,8 +55,12 @@ Explicit empty inline lists such as `hidden-blocks: []` and `replacement-blocks:
 
 - `/antixray status`
   Shows loader/runtime info, async capacity, config path, and per-dimension counts.
+- `/antixray config`
+  Shows the effective read-only config summary, including source path, global settings, async capacity, permission bypass, and per-dimension overrides.
+- `/antixray validate`
+  Checks the file on disk without applying it. Reports syntax, value, dimension, and block-id errors and tells you whether reload is safe.
 - `/antixray reload`
-  Reloads the config and reports the post-reload state plus any effective runtime diffs.
+  Validates first, then applies the config atomically. Invalid input leaves the file and last-known-good active configuration unchanged.
 - `/antixray profile`
   Shows rewrite/reveal counters, timings, async pressure, and sync fallback ratios.
 - `/antixray debug <world> <x> <y> <z>`

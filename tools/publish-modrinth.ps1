@@ -187,6 +187,20 @@ function Get-ModrinthVersions {
     return @(Invoke-RestMethod -Uri "https://api.modrinth.com/v2/project/$Slug/version" -Headers $headers)
 }
 
+function Get-ModrinthDisplayGameVersion {
+    param([string[]] $Versions)
+
+    if ($Versions.Count -ne 1 -or [string]::IsNullOrWhiteSpace($Versions[0])) {
+        throw "Use exactly one -GameVersions value for a release. The Modrinth display version must identify one Minecraft support line."
+    }
+
+    $gameVersion = $Versions[0].Trim()
+    if ($gameVersion -notmatch '^\d+\.\d+(?:\.x)?$') {
+        throw "Unsupported -GameVersions value '$gameVersion'. Expected a support line such as 26.2 or 26.1.x."
+    }
+    return "mc$gameVersion"
+}
+
 function New-VersionPayload {
     param(
         [string] $Name,
@@ -301,8 +315,9 @@ foreach ($path in @($zhPath, $enPath)) {
 }
 $changelog = ((Get-Content -Path $zhPath -Raw).Trim() + "`n`n---`n`n" + (Get-Content -Path $enPath -Raw).Trim())
 
-$fabricVersionNumber = "$Version+fabric"
-$neoforgeVersionNumber = "$Version+neoforge"
+$displayGameVersion = Get-ModrinthDisplayGameVersion -Versions $GameVersions
+$fabricVersionNumber = "$Version+$displayGameVersion.fabric"
+$neoforgeVersionNumber = "$Version+$displayGameVersion.neoforge"
 $existingVersions = Get-ModrinthVersions -Slug $ProjectSlug
 $existingNumbers = @($existingVersions | ForEach-Object { $_.version_number })
 $targetVersionNumbers = @($fabricVersionNumber, $neoforgeVersionNumber)

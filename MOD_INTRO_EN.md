@@ -14,7 +14,7 @@ This project was split from `MeowConsole` and now contains only anti-xray functi
 - 🔌 **Built for modded servers**: Fabric and NeoForge share the same anti-xray core, keeping configuration and behavior aligned across loaders.
 - 🧱 **Safer decoys**: Block entities such as chests and ender chests are excluded from fake ore candidates, reducing visual glitches and confusing client-side states.
 - ⚡ **Stable under exploration load**: Async chunk packet rewriting uses bounded backpressure to avoid unbounded snapshot queues and memory spikes.
-- 📊 **Clearer server-owner diagnostics**: `/antixray status` now reports runtime state, async capacity, config path, and per-dimension hidden/replacement counts; `/antixray reload` reports effective runtime diffs; `/antixray inspect` explains why a specific block is or is not being obfuscated, now with stable standard dimension ids and cleaner console / RCON output.
+- 📊 **Config checks without risky fallback**: `/antixray config` shows the active configuration, `/antixray validate` checks the file on disk without applying it, and `/antixray reload` applies only validated changes atomically. Failures preserve both the file and last-known-good protection.
 
 ## 🧩 Features
 
@@ -28,7 +28,7 @@ This project was split from `MeowConsole` and now contains only anti-xray functi
 
 ## 🌐 Compatibility
 
-Version `1.3.1` targets Minecraft `26.2` and Java `25`:
+Version `1.4.0` targets Minecraft `26.2` and Java `25`:
 
 - Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
 - NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
@@ -87,7 +87,7 @@ config/meowantixray.yml
 ```
 
 4. Tune hidden blocks, replacement blocks, height ranges, and async settings for your server.
-5. Use `/antixray reload` to reload the config, then check `/antixray status` and `/antixray profile`.
+5. Run `/antixray validate` first, then `/antixray reload`; use `/antixray status` and `/antixray profile` to check runtime state.
 
 Common config example:
 
@@ -113,6 +113,8 @@ Existing config files are supplemented with newly added missing keys during load
 
 ```text
 /antixray status
+/antixray config
+/antixray validate
 /antixray reload
 /antixray profile
 /antixray debug <world> <x> <y> <z>

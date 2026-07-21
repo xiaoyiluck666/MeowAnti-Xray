@@ -81,6 +81,44 @@ const PROTOCOLS = {
       PLAY_PONG: 0x2d,
       PLAY_PLAYER_LOADED: 0x2c
     }
+  },
+  '26.2-neoforge': {
+    protocolVersion: 776,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x13,
+      PLAY_CHUNK_BATCH_START: [0x0b, 0x0c],
+      PLAY_CHUNK_BATCH_FINISHED: [0x0a, 0x0b],
+      PLAY_KEEP_ALIVE: [0x2b, 0x2c],
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: [0x2c, 0x2d],
+      PLAY_PING: [0x3c, 0x3d],
+      PLAY_PLAYER_POSITION: [0x47, 0x48]
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
   }
 }
 
@@ -105,6 +143,8 @@ function parseArgs(argv) {
     rconPort: 25575,
     rconPassword: '',
     gamemode: '',
+    reuseNames: false,
+    sessionId: crypto.randomBytes(2).toString('hex'),
     teleportInterval: 2500,
     teleportStep: 192,
     teleportY: null,
@@ -191,6 +231,13 @@ function parseArgs(argv) {
         args.gamemode = next
         i++
         break
+      case '--reuse-names':
+        args.reuseNames = true
+        break
+      case '--session-id':
+        args.sessionId = next
+        i++
+        break
       case '--teleport-interval':
         args.teleportInterval = Number(next)
         i++
@@ -225,6 +272,8 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.moveInterval) || args.moveInterval < 50) throw new Error('Invalid --move-interval')
   if (args.rconTeleport && !args.rconPassword) throw new Error('--rcon-teleport requires --rcon-password')
   if (args.gamemode && !['survival', 'creative', 'adventure', 'spectator'].includes(args.gamemode)) throw new Error('Invalid --gamemode')
+  args.sessionId = sanitizeUsernamePart(args.sessionId).slice(0, 6)
+  if (!args.reuseNames && args.sessionId.length === 0) throw new Error('Invalid --session-id')
   if (!Number.isInteger(args.rconPort) || args.rconPort < 1 || args.rconPort > 65535) throw new Error('Invalid --rcon-port')
   if (!Number.isInteger(args.teleportInterval) || args.teleportInterval < 250) throw new Error('Invalid --teleport-interval')
   if (!Number.isFinite(args.teleportStep) || args.teleportStep <= 0) throw new Error('Invalid --teleport-step')
@@ -242,7 +291,7 @@ Usage:
 Options:
   --host <host>                 Server host, default 127.0.0.1
   --port <port>                 Server port, default 25565
-  --mc-version <version>        Protocol profile: 26.2 or 26.1.2, default 26.2
+  --mc-version <version>        Protocol profile: 26.2, 26.2-neoforge, or 26.1.2, default 26.2
   --clients <n>                 Number of fake network clients, default 1
   --duration <seconds>          Test duration after launch, default 60
   --name <prefix>               Username prefix, default LoadBot
@@ -258,6 +307,8 @@ Options:
   --rcon-host <host>            RCON host, default same as --host
   --rcon-port <port>            RCON port, default 25575
   --gamemode <mode>             Optional RCON gamemode before routing
+  --reuse-names                 Reuse exact usernames instead of adding a session suffix
+  --session-id <text>           Session suffix for fresh usernames, default random 4 hex chars
   --teleport-interval <ms>      RCON teleport interval, default 2500
   --teleport-step <blocks>      RCON route step, default 192
   --teleport-y <number>         RCON teleport Y, default current spawn Y
@@ -337,6 +388,18 @@ function offlineUuid(username) {
   return hash
 }
 
+function sanitizeUsernamePart(value) {
+  return String(value || '').replace(/[^A-Za-z0-9_]/g, '')
+}
+
+function buildUsername(prefix, sessionId, reuseNames, index) {
+  const indexSuffix = String(index + 1).padStart(2, '0')
+  const sessionSuffix = reuseNames ? '' : sessionId
+  const maxPrefixLength = Math.max(1, 16 - sessionSuffix.length - indexSuffix.length)
+  const cleanPrefix = sanitizeUsernamePart(prefix).slice(0, maxPrefixLength) || 'LoadBot'.slice(0, maxPrefixLength)
+  return `${cleanPrefix}${sessionSuffix}${indexSuffix}`
+}
+
 function packet(id, payload = Buffer.alloc(0)) {
   return Buffer.concat([varInt(id), payload])
 }
@@ -363,7 +426,7 @@ class LoadClient {
     this.clientbound = this.protocol.clientbound
     this.serverbound = this.protocol.serverbound
     this.metrics = metrics
-    this.username = `${args.name}${String(index + 1).padStart(2, '0')}`
+    this.username = buildUsername(args.name, args.sessionId, args.reuseNames, index)
     this.state = 'handshaking'
     this.compressionThreshold = -1
     this.incoming = Buffer.alloc(0)
@@ -420,6 +483,7 @@ class LoadClient {
     })
 
     this.socket.on('error', error => {
+      if (this.closed && (error.code === 'ERR_STREAM_WRITE_AFTER_END' || error.message === 'write after end')) return
       this.errors++
       this.metrics.errors++
       console.error(`[${this.username}] socket error: ${error.message}`)
@@ -442,7 +506,7 @@ class LoadClient {
   }
 
   send(id, payload = Buffer.alloc(0), compressed = true) {
-    if (!this.socket || this.socket.destroyed) return
+    if (this.closed || !this.socket || this.socket.destroyed || this.socket.writableEnded) return
     const body = packet(id, payload)
     let framed = body
     if (compressed && this.compressionThreshold >= 0) {
@@ -540,29 +604,32 @@ class LoadClient {
   }
 
   handlePlayPacket(id, payload) {
-    if (id === this.clientbound.PLAY_KEEP_ALIVE) {
+    if (packetMatches(id, this.clientbound.PLAY_KEEP_ALIVE) && payload.length === 8) {
       this.keepAlives++
       this.send(this.serverbound.PLAY_KEEP_ALIVE, payload)
       return
     }
-    if (id === this.clientbound.PLAY_PING) {
+    if (packetMatches(id, this.clientbound.PLAY_PING)) {
       this.send(this.serverbound.PLAY_PONG, payload)
       return
     }
-    if (id === this.clientbound.PLAY_PLAYER_POSITION) {
+    if (packetMatches(id, this.clientbound.PLAY_PLAYER_POSITION)) {
       this.acceptPosition(payload)
       return
     }
-    if (id === this.clientbound.PLAY_CHUNK_BATCH_START) {
+    const batchStart = packetMatches(id, this.clientbound.PLAY_CHUNK_BATCH_START)
+    const batchFinished = packetMatches(id, this.clientbound.PLAY_CHUNK_BATCH_FINISHED)
+    if (batchStart) {
       this.batches++
       this.metrics.batches++
-      return
     }
-    if (id === this.clientbound.PLAY_CHUNK_BATCH_FINISHED) {
+    if (batchFinished) {
       this.send(this.serverbound.PLAY_CHUNK_BATCH_RECEIVED, float32(20))
+    }
+    if (batchStart || batchFinished) {
       return
     }
-    if (id === this.clientbound.PLAY_LEVEL_CHUNK_WITH_LIGHT) {
+    if (packetMatches(id, this.clientbound.PLAY_LEVEL_CHUNK_WITH_LIGHT)) {
       this.chunks++
       this.metrics.chunks++
       return
@@ -750,6 +817,10 @@ async function main() {
     rcon = new RconClient(args.rconHost, args.rconPort, args.rconPassword)
     await rcon.connect()
     console.log(`[rcon] connected to ${args.rconHost}:${args.rconPort}`)
+    if (args.gamemode === 'spectator') {
+      await rcon.command('gamerule spectatorsGenerateChunks true')
+      console.log('[rcon] spectatorsGenerateChunks=true')
+    }
     teleportTimer = setInterval(() => driveTeleports(rcon, clients, args).catch(error => {
       if (stopping) return
       metrics.errors++
@@ -811,6 +882,10 @@ async function driveTeleports(rcon, clients, args) {
     await rcon.command(`tp ${client.username} ${x.toFixed(1)} ${y.toFixed(1)} ${z.toFixed(1)}`)
     client.metrics.teleports++
   }
+}
+
+function packetMatches(actual, expected) {
+  return Array.isArray(expected) ? expected.includes(actual) : actual === expected
 }
 
 function once(emitter, event) {

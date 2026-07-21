@@ -372,5 +372,46 @@ class FakeOreConfigTest {
             "minecraft:deepslate_emerald_ore"
         ), end.hiddenBlocks);
     }
+
+    @Test
+    void loadCandidateRejectsMalformedConfigWithoutChangingFile(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("meowantixray.yml");
+        String original = """
+            anti-xray:
+              enabled: maybe
+              hidden-blocks: [minecraft:diamond_ore
+              replacement-blocks:
+                - minecraft:stone
+            """;
+        Files.writeString(path, original, StandardCharsets.UTF_8);
+
+        FakeOreConfig.LoadResult result = FakeOreConfig.loadCandidate(path, false);
+
+        assertFalse(result.valid());
+        assertTrue(result.issues().stream().anyMatch(issue -> issue.isError()));
+        assertEquals(original, Files.readString(path, StandardCharsets.UTF_8));
+    }
+
+    @Test
+    void validationOfMissingConfigDoesNotCreateFile(@TempDir Path tempDir) {
+        Path path = tempDir.resolve("meowantixray.yml");
+
+        FakeOreConfig.LoadResult result = FakeOreConfig.loadCandidate(path, false);
+
+        assertFalse(result.valid());
+        assertFalse(Files.exists(path));
+        assertTrue(result.issues().stream().anyMatch(issue -> issue.message().contains("does not exist")));
+    }
+
+    @Test
+    void loadCandidateAcceptsUtf8Bom(@TempDir Path tempDir) throws Exception {
+        Path path = tempDir.resolve("meowantixray.yml");
+        Files.writeString(path, "\uFEFF# existing Windows config\nanti-xray:\n  enabled: true\n", StandardCharsets.UTF_8);
+
+        FakeOreConfig.LoadResult result = FakeOreConfig.loadCandidate(path, false);
+
+        assertTrue(result.valid());
+        assertTrue(result.config().enabled);
+    }
 }
 

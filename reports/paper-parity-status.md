@@ -1,6 +1,6 @@
 # Paper Anti-Xray Parity Status
 
-Last checked: 2026-06-28
+Last checked: 2026-07-09
 
 ## Scope
 
@@ -9,13 +9,22 @@ Meow Anti-Xray tracks Paper-style anti-xray behavior for Fabric and NeoForge ded
 ## Upstream Baseline
 
 - Paper repository: `https://github.com/PaperMC/Paper`
-- Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6`
+- Paper `main`: `a313ca15477cf331c859f329d548eeef31ded16b`
 - Paper `ver/1.21.11`: `c5eb0790f199da6c38d0a650e1e5cd5415b28185`
 - Key Paper files to recheck:
   - `paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockControllerAntiXray.java`
   - `paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketInfoAntiXray.java`
   - `paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketInfo.java`
   - `WorldConfiguration.Anticheat.AntiXray`
+
+## Latest Recheck
+
+2026-07-09 rechecked Paper `main` at `a313ca15477cf331c859f329d548eeef31ded16b` against the previous project baseline `76d2ac758cb3abe75aceefa88207443768f585c6`.
+
+- Anti-xray config fields and defaults are unchanged.
+- `ChunkPacketBlockControllerAntiXray` changed `onPlayerLeftClickBlock` to accept `Level` directly instead of `ServerPlayerGameMode`, then still calls `updateNearbyBlocks` on that same level.
+- The rest of the diff in `WorldConfiguration.java` is unrelated entity type API renaming.
+- No Meow Anti-Xray code change is required: the mod already resolves `ServerLevel` from the player in `ServerPlayerGameModeMixin` and passes that level into its Paper-style neighbor update path.
 
 ## Current Progress
 
