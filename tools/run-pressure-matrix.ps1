@@ -146,6 +146,12 @@ function Start-TestServer {
     } else {
         ":neoforge:runServer --console=plain"
     }
+    $port = if ($Loader -eq "fabric") { 25565 } else { 25566 }
+    $existingConnection = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    if ($null -ne $existingConnection) {
+        throw "Port $port is already in use before starting $Loader"
+    }
+
     $process = Start-Process `
         -FilePath "cmd.exe" `
         -ArgumentList "/c .\gradlew.bat $arguments" `
@@ -188,22 +194,23 @@ function Stop-TestServer {
         Write-Warning "RCON stop failed for ${Loader}: $($_.Exception.Message)"
     }
 
-    $deadline = (Get-Date).AddMinutes(2)
+    $deadline = (Get-Date).AddSeconds(30)
     while (-not $Wrapper.HasExited -and (Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 2
     }
-    if (-not $Wrapper.HasExited) {
-        Get-CimInstance Win32_Process |
-            Where-Object {
-                $_.Name -eq "java.exe" -and
-                $_.CommandLine -like "*$repoRoot*" -and
-                $_.CommandLine -like "*runServer*"
-            } |
-            ForEach-Object {
-                Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-            }
-        Stop-Process -Id $Wrapper.Id -Force -ErrorAction SilentlyContinue
-    }
+
+    $marker = if ($Loader -eq "fabric") { "fabric.dli.config" } else { "fml.modFolders" }
+    Get-CimInstance Win32_Process |
+        Where-Object {
+            $_.Name -eq "java.exe" -and
+            $_.CommandLine -like "*$repoRoot*" -and
+            $_.CommandLine -like "*$marker*"
+        } |
+        ForEach-Object {
+            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    Stop-Process -Id $Wrapper.Id -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
 }
 
 $settings = @{
@@ -234,7 +241,8 @@ foreach ($loader in $Loaders) {
         Set-QueueSize $setting.ConfigPath $queueSize
         $server = $null
         try {
-            $logBase = Join-Path $resultsDirectory "server-$loader-q$queueSize"
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $logBase = Join-Path $resultsDirectory "server-$timestamp-$loader-q$queueSize"
             $server = Start-TestServer $loader $logBase
             & powershell -NoProfile -ExecutionPolicy Bypass -File `
                 (Join-Path $repoRoot "tools\capture-pressure-sample.ps1") `
@@ -242,7 +250,7 @@ foreach ($loader in $Loaders) {
                 -Clients $Clients `
                 -DurationSeconds $DurationSeconds `
                 -ExpectedQueueSize $queueSize `
-                -RconPassword $password
+                -RconPassword $password 2>&1 | ForEach-Object { Write-Host $_ }
             if ($LASTEXITCODE -ne 0) {
                 throw "Pressure collector failed with exit code $LASTEXITCODE"
             }
