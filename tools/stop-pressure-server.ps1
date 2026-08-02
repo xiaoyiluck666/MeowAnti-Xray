@@ -9,24 +9,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
-$marker = if ($Loader -eq "fabric") { "fabric.dli.config" } else { "fml.modFolders" }
-
 Get-CimInstance Win32_Process |
     Where-Object {
-        $_.Name -eq "java.exe" -and
-        $_.CommandLine -like "*$repoRoot*" -and
-        $_.CommandLine -like "*$marker*"
-    } |
-    ForEach-Object {
-        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-    }
-
-Get-CimInstance Win32_Process |
-    Where-Object {
-        $_.Name -eq "java.exe" -and
-        $_.CommandLine -like "*$repoRoot*" -and
-        $_.CommandLine -like "*gradle-wrapper.jar*" -and
-        $_.CommandLine -like "*runServer*"
+        $_.Name -in @("java.exe", "cmd.exe") -and
+        $_.CommandLine -like "*$repoRoot*" -and (
+            $_.CommandLine -like "*runServer*" -or
+            $_.CommandLine -like "*fabric.dli.config*" -or
+            $_.CommandLine -like "*fml.modFolders*"
+        )
     } |
     ForEach-Object {
         Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
