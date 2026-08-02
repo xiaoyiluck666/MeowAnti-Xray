@@ -13,10 +13,10 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $settings = if ($Loader -eq "fabric") {
-    @{
+        @{
         ConfigPath = Join-Path $repoRoot "run\config\meowantixray.yml"
         Port = 25565
-        Task = "runServer"
+        Task = ":runServer"
     }
 } else {
     @{
