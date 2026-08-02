@@ -54,11 +54,11 @@ Meow Anti-Xray 不只停留在功能实现，也做过真实跑图和高压区�
 
 | 场景 | 结果 |
 | --- | --- |
-| 🧪 Fabric 26.2 / 1.3.0 基准，8 个网络假玩家 | `92s` 内处理 `32,893` 个 chunks，约 `357.49 chunks/s`，客户端错误 `0` |
-| 🔥 NeoForge 26.2 / 1.3.0 基准，8 个网络假玩家 | `92s` 内处理 `35,593` 个 chunks，约 `386.86 chunks/s`，客户端错误 `0` |
-| 🧪 Fabric 真实单人跑图 | TPS 稳定 `20.00`，MSPT 中位数 `3.31ms`，`meowantixray` 在 server-thread mods 视图占比约 `3.55%` |
-| 🔥 NeoForge 8 个网络假玩家高压跑图 | `91s` 内处理 `36,233` 个 chunks，约 `398.06 chunks/s`，客户端错误 `0` |
-| 🚀 更高吞吐配置测试 | `async-queue-size=64` 时 `91s` 内处理 `38,037` 个 chunks，约 `417.92 chunks/s`，客户端错误 `0` |
+| 🧪 Fabric 1.5.0 默认队列，8 个网络假玩家 | 3 次 90 秒样本平均 `427.17 chunks/s`，客户端错误 `0` |
+| 🔥 NeoForge 1.5.0 默认队列，8 个网络假玩家 | 3 次 90 秒样本平均 `390.07 chunks/s`，客户端错误 `0` |
+| 🚀 Fabric queue=32 调优筛选 | 3 次样本平均 `497.28 chunks/s`，保持为手动调优选项 |
+| 🚀 NeoForge queue=32 调优筛选 | 3 次样本平均 `462.82 chunks/s`，需结合 profile 观察压力 |
+| 🛡️ 默认策略 | `async-queue-size=16`，优先保证异步任务收敛和内存稳定 |
 
 1.5.0 双 Loader 矩阵显示，默认 `16` 在吞吐、任务收敛和压力之间更均衡；`32`/`64` 虽然可以提高吞吐，但更容易进入饱和压力状态，建议服主结合 `/antixray profile` 和机器内存手动调整。完整矩阵记录见 `reports/1.5.0-pressure-matrix.md`。
 

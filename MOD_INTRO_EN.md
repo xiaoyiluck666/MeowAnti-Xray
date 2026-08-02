@@ -54,11 +54,11 @@ Meow Anti-Xray has been tested with real exploration and heavy chunk-loading wor
 
 | Scenario | Result |
 | --- | --- |
-| 🧪 Fabric 26.2 / 1.3.0 baseline with 8 network fake players | `32,893` chunks processed in `92s`, about `357.49 chunks/s`, `0` client errors |
-| 🔥 NeoForge 26.2 / 1.3.0 baseline with 8 network fake players | `35,593` chunks processed in `92s`, about `386.86 chunks/s`, `0` client errors |
-| 🧪 Fabric real single-player exploration | Stable `20.00 TPS`, median MSPT `3.31ms`, with `meowantixray` taking about `3.55%` in the server-thread mods view |
-| 🔥 NeoForge stress test with 8 network fake players | `36,233` chunks processed in `91s`, about `398.06 chunks/s`, `0` client errors |
-| 🚀 Higher-throughput async queue test | With `async-queue-size=64`, `38,037` chunks processed in `91s`, about `417.92 chunks/s`, `0` client errors |
+| 🧪 Fabric 1.5.0 default queue with 8 network fake players | Three 90-second samples averaged `427.17 chunks/s`, `0` client errors |
+| 🔥 NeoForge 1.5.0 default queue with 8 network fake players | Three 90-second samples averaged `390.07 chunks/s`, `0` client errors |
+| 🚀 Fabric queue=32 tuning screen | Three samples averaged `497.28 chunks/s`; kept as a manual tuning option |
+| 🚀 NeoForge queue=32 tuning screen | Three samples averaged `462.82 chunks/s`; watch pressure in `/antixray profile` |
+| 🛡️ Default policy | `async-queue-size=16`, favoring convergence and memory stability |
 
 The 1.5.0 dual-loader matrix shows that the default `16` gives the best balance between throughput, convergence, and pressure. Queues `32` and `64` can increase throughput, but reach saturated pressure more often; server owners should tune them only while watching `/antixray profile` and available memory. See `reports/1.5.0-pressure-matrix.md` for the complete matrix.
 

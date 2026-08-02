@@ -4,15 +4,15 @@ Last updated: 2026-08-02
 
 ## Current State
 
-- Latest published mainline version: `1.5.0` (local release prepared; Modrinth upload pending).
+- Latest published mainline version: `1.5.0`.
 - Latest published maintenance version: `1.2.3`.
 - Current mainline target: Minecraft `26.2`, Java `25`.
-- Mainline branch: `main` for Minecraft `26.2` / mod `1.4.x+`.
+- Mainline branch: `main` for Minecraft `26.2` / mod `1.5.x+`.
 - Maintenance branch: `maintenance/26.1.x` for Minecraft `26.1`, `26.1.1`, `26.1.2` / mod `1.2.x`.
 - Modrinth project: `meowanti-xray` / project id `8pl8obwY`.
 - Latest Modrinth versions:
-  - Fabric: `1.4.0+fabric`, version id `ZOlY7YkK`.
-  - NeoForge: `1.4.0+neoforge`, version id `fa0kDZLe`.
+  - Fabric: `1.5.0+mc26.2.fabric`, version id `gnp1C7GA`.
+  - NeoForge: `1.5.0+mc26.2.neoforge`, version id `Bkv4fcCA`.
 - Latest 26.1.x versions:
   - Fabric: `1.2.3+fabric`, version id `xsDDkrUC`.
   - NeoForge: `1.2.3+neoforge`, version id `yCzFiKhF`.
@@ -94,7 +94,7 @@ Do not add in-game configuration writes, a general server console, or features o
 ## Release Checklist
 
 1. Confirm target branch.
-   - `main`: release `1.4.x+` for Minecraft `26.2`.
+   - `main`: release `1.5.x+` for Minecraft `26.2`.
    - `maintenance/26.1.x`: release `1.2.x` patches for Minecraft `26.1.x`.
 
 2. Update local files.
