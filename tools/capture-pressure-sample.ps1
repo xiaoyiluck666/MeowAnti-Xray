@@ -142,6 +142,14 @@ $runnerResult = Get-Content -LiteralPath $runnerJsonPath -Raw | ConvertFrom-Json
 $activeQueueMarker = "queueSize=$ExpectedQueueSize"
 $rconConfigProperty = if ($null -ne $runnerResult.rcon) { $runnerResult.rcon.PSObject.Properties["config"] } else { $null }
 $activeQueueConfirmed = $null -ne $rconConfigProperty -and $rconConfigProperty.Value -like "*$activeQueueMarker*"
+$profileText = if ($null -ne $runnerResult.rcon) { $runnerResult.rcon.profile } else { "" }
+$profileMatch = [regex]::Match($profileText, 'inFlight=(\d+), availablePermits=(\d+), pressure=([^,]+), syncFallbackRatio=([0-9.]+)%')
+$runtimeProfile = [ordered]@{
+    inFlight = if ($profileMatch.Success) { [int] $profileMatch.Groups[1].Value } else { $null }
+    availablePermits = if ($profileMatch.Success) { [int] $profileMatch.Groups[2].Value } else { $null }
+    pressure = if ($profileMatch.Success) { $profileMatch.Groups[3].Value } else { $null }
+    syncFallbackRatio = if ($profileMatch.Success) { [double] $profileMatch.Groups[4].Value } else { $null }
+}
 
 $commit = (& git -C $repoRoot rev-parse HEAD).Trim()
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
@@ -179,6 +187,7 @@ $sample = [ordered]@{
         serverCommandLine = if ($null -ne $serverJava) { $serverJava.CommandLine } else { $null }
     }
     runner = $runnerResult
+    runtimeProfile = $runtimeProfile
     validation = [ordered]@{
         runnerExitCode = $runnerExitCode
         activeQueueConfirmed = $activeQueueConfirmed

@@ -1,10 +1,10 @@
 # Meow Anti-Xray Roadmap
 
-Last updated: 2026-07-12
+Last updated: 2026-08-02
 
 ## Current State
 
-- Latest published mainline version: `1.4.0`.
+- Latest published mainline version: `1.5.0` (local release prepared; Modrinth upload pending).
 - Latest published maintenance version: `1.2.3`.
 - Current mainline target: Minecraft `26.2`, Java `25`.
 - Mainline branch: `main` for Minecraft `26.2` / mod `1.4.x+`.
@@ -42,6 +42,7 @@ Last updated: 2026-07-12
 - `1.3.0`: Minecraft 26.2 compatibility release; updated Fabric Loader/API and NeoForge targets, updated pressure runner to protocol `776`, retained protocol `775` support for 26.1.2, completed dual-loader pressure tests, and published Fabric/NeoForge builds to Modrinth.
 - `maintenance/26.1.x`: remote branch created from `e7b3966` to isolate 26.1.x support from the 26.2 mainline.
 - Paper parity status report added at `reports/paper-parity-status.md`.
+- `1.5.0` queue matrix completed: both loaders passed 8-client, 90-second routes with zero runner errors; default queue remains `16`.
 
 ## Product Direction
 
@@ -55,18 +56,18 @@ Do not add in-game configuration writes, a general server console, or features o
 
 ## Planned Iterations
 
-### 1.5.0 - Dual-loader Performance Baseline (next)
+### 1.5.0 - Dual-loader Performance Baseline (complete)
 
 **Goal:** turn async/backpressure tuning into a measured compatibility contract.
 
 - Baseline tooling is now defined by `tools/capture-pressure-sample.ps1`, structured runner JSON output, and `reports/1.5.0-pressure-matrix.md`; raw samples stay under ignored `build/pressure-results/`.
 - The clean-worktree queue `16` smoke gate now passes on the same config SHA256: Fabric 2 clients / 25s / 7127 chunks / 0 errors, NeoForge 2 clients / 25s / 6823 chunks / 0 errors; both finish with inFlight=0 and visible rewrite activity.
-- Establish a versioned pressure-test matrix for Fabric and NeoForge on the same mainline build: 2-client smoke and 8-client 90-second spectator route, with default queue `16` first. Record chunks, client errors, `rewriteTasks`, rewrite timings, fallback ratio, heap and server tick health.
-- Close the current evidence gap by running the full Fabric 26.2 route equivalent to the passing NeoForge route. Treat `syncFallbackRatio=44.0%` as an overload signal to investigate, not as packet loss or an automatic reason to raise the default.
-- Compare queue sizes `0`, `16`, `32`, and `64` only in a controlled environment. Keep `16` unless both loaders show a clear benefit that does not regress memory headroom or tick health.
-- If measurements justify code changes, improve scheduling or snapshot allocation behind deterministic equivalence tests: synchronous and asynchronous rewriting must produce the same obfuscation/reveal result for a fixed test seed.
+- Completed the versioned pressure matrix for Fabric and NeoForge on the same Minecraft 26.2 target: 8-client, 90-second spectator routes at queue `0`, `16`, `32`, and `64`.
+- Repeated queue `16` and queue `32` three times per loader. Queue `32` improved throughput but still produced saturated pressure and occasional in-flight work at the sample boundary.
+- Kept the default at `16`; no scheduling or snapshot-allocation code change is justified by the matrix.
+- Added repeatable lifecycle helpers and structured runtime pressure fields for future samples.
 
-**Acceptance:** both loaders complete the standard route with zero runner errors and visible rewrite activity; benchmark reports include environment and configuration; no unbounded queue or increasing in-flight work; any default change is backed by the matrix.
+**Acceptance:** met. Both loaders completed the standard route with zero runner errors and visible rewrite activity; the report includes environment and configuration evidence; no default queue increase was made while pressure remained visible.
 
 ### Compatibility and Maintenance (continuous)
 

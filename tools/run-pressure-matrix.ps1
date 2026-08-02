@@ -142,7 +142,7 @@ function Start-TestServer {
     $stderrPath = "$LogBase.stderr.log"
     Remove-Item $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
     $arguments = if ($Loader -eq "fabric") {
-        "runServer --console=plain"
+        ":runServer --console=plain"
     } else {
         ":neoforge:runServer --console=plain"
     }
@@ -194,22 +194,12 @@ function Stop-TestServer {
         Write-Warning "RCON stop failed for ${Loader}: $($_.Exception.Message)"
     }
 
-    $deadline = (Get-Date).AddSeconds(30)
-    while (-not $Wrapper.HasExited -and (Get-Date) -lt $deadline) {
-        Start-Sleep -Seconds 2
+    & powershell -NoProfile -ExecutionPolicy Bypass -File `
+        (Join-Path $repoRoot "tools\stop-pressure-server.ps1") `
+        -Loader $Loader
+    if (-not $Wrapper.HasExited) {
+        Stop-Process -Id $Wrapper.Id -Force -ErrorAction SilentlyContinue
     }
-
-    $marker = if ($Loader -eq "fabric") { "fabric.dli.config" } else { "fml.modFolders" }
-    Get-CimInstance Win32_Process |
-        Where-Object {
-            $_.Name -eq "java.exe" -and
-            $_.CommandLine -like "*$repoRoot*" -and
-            $_.CommandLine -like "*$marker*"
-        } |
-        ForEach-Object {
-            Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-        }
-    Stop-Process -Id $Wrapper.Id -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
 }
 

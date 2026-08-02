@@ -28,7 +28,7 @@
 
 ## 🌐 版本兼容
 
-当前 `1.4.0` 版本面向 Minecraft `26.2` 与 Java `25`：
+当前 `1.5.0` 版本面向 Minecraft `26.2` 与 Java `25`：
 
 - Fabric：Fabric Loader `>=0.19.3`，Fabric API `>=0.153.0+26.2`，Minecraft `>=26.2 <26.3`。
 - NeoForge：NeoForge `>=26.2.0.7-beta`，Minecraft `[26.2,26.3)`。
@@ -60,7 +60,7 @@ Meow Anti-Xray 不只停留在功能实现，也做过真实跑图和高压区�
 | 🔥 NeoForge 8 个网络假玩家高压跑图 | `91s` 内处理 `36,233` 个 chunks，约 `398.06 chunks/s`，客户端错误 `0` |
 | 🚀 更高吞吐配置测试 | `async-queue-size=64` 时 `91s` 内处理 `38,037` 个 chunks，约 `417.92 chunks/s`，客户端错误 `0` |
 
-这些测试说明：默认配置优先保证内存稳定，高压跑图时不会让异步重写任务无限堆积；如果服务器内存更充足，也可以通过调大 `async-queue-size` 换取更高区块吞吐。完整性能报告可通过 spark 链接查看：
+1.5.0 双 Loader 矩阵显示，默认 `16` 在吞吐、任务收敛和压力之间更均衡；`32`/`64` 虽然可以提高吞吐，但更容易进入饱和压力状态，建议服主结合 `/antixray profile` 和机器内存手动调整。完整矩阵记录见 `reports/1.5.0-pressure-matrix.md`。
 
 - 🧪 Fabric 真实跑图：<https://spark.lucko.me/btQdhJh1gH>
 - 🔥 NeoForge 8 假玩家，默认保守队列：<https://spark.lucko.me/yFi0jlgOf4>

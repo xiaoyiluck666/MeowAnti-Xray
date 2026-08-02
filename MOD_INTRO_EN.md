@@ -28,7 +28,7 @@ This project was split from `MeowConsole` and now contains only anti-xray functi
 
 ## 🌐 Compatibility
 
-Version `1.4.0` targets Minecraft `26.2` and Java `25`:
+Version `1.5.0` targets Minecraft `26.2` and Java `25`:
 
 - Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
 - NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
@@ -60,7 +60,7 @@ Meow Anti-Xray has been tested with real exploration and heavy chunk-loading wor
 | 🔥 NeoForge stress test with 8 network fake players | `36,233` chunks processed in `91s`, about `398.06 chunks/s`, `0` client errors |
 | 🚀 Higher-throughput async queue test | With `async-queue-size=64`, `38,037` chunks processed in `91s`, about `417.92 chunks/s`, `0` client errors |
 
-These tests show that the default configuration favors memory stability and prevents async rewrite work from growing into an unbounded queue during heavy exploration. Servers with more memory can raise `async-queue-size` to trade memory headroom for higher chunk throughput. Full spark reports:
+The 1.5.0 dual-loader matrix shows that the default `16` gives the best balance between throughput, convergence, and pressure. Queues `32` and `64` can increase throughput, but reach saturated pressure more often; server owners should tune them only while watching `/antixray profile` and available memory. See `reports/1.5.0-pressure-matrix.md` for the complete matrix.
 
 - 🧪 Fabric real exploration: <https://spark.lucko.me/btQdhJh1gH>
 - 🔥 NeoForge 8 fake players, conservative default queue: <https://spark.lucko.me/yFi0jlgOf4>
