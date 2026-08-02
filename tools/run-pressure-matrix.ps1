@@ -40,16 +40,19 @@ function Set-QueueSize {
     )
 
     $text = [IO.File]::ReadAllText($Path)
+    $matches = [regex]::Matches($text, '(?m)^(\s*)async-queue-size:\s*\d+(\s*)$')
+    if ($matches.Count -ne 1) {
+        throw "Could not locate exactly one async-queue-size in $Path"
+    }
     $updated = [regex]::Replace(
         $text,
-        '(?m)^(\s{2}async-queue-size:\s*)\d+(\s*)$',
+        '(?m)^(\s*async-queue-size:\s*)\d+(\s*)$',
         { param($match) $match.Groups[1].Value + $QueueSize + $match.Groups[2].Value },
         1
     )
-    if ($updated -eq $text) {
-        throw "Could not update async-queue-size in $Path"
+    if ($updated -ne $text) {
+        [IO.File]::WriteAllText($Path, $updated, [Text.UTF8Encoding]::new($false))
     }
-    [IO.File]::WriteAllText($Path, $updated, [Text.UTF8Encoding]::new($false))
 }
 
 function Send-RconPacket {
