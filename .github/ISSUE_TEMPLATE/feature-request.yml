@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest an improvement for Meow Anti-Xray.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Feature requests are most useful when they explain the server-owner problem before proposing an implementation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the anti-xray or server-management problem you are facing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe what Meow Anti-Xray should do and how a server owner would use it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include existing configuration, commands, mods, or workflows you tried.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: loader-scope
+    attributes:
+      label: Loader scope
+      options:
+        - Both Fabric and NeoForge
+        - Fabric only
+        - NeoForge only
+        - Unsure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and feature requests.
+          required: true

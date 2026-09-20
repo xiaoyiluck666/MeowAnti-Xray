@@ -11,6 +11,7 @@
 - NeoForge mixin 清单：`neoforge/src/main/resources/meowantixray.neoforge.mixins.json`。
 - GitHub 私有仓库：`https://github.com/xiaoyiluck666/MeowAnti-Xray`，本地 `origin` 指向 `https://github.com/xiaoyiluck666/MeowAnti-Xray.git`。
 - Modrinth 更新检测：`src/main/java/com/meowantixray/update/ModrinthUpdateChecker.java`，项目 slug `meowanti-xray`，公开页 `https://modrinth.com/mod/meowanti-xray`。
+- GitHub issue 表单：`.github/ISSUE_TEMPLATE/bug-report.yml` 强制收集 loader/版本、复现步骤、完整日志、模组列表和反矿透配置；`.github/ISSUE_TEMPLATE/feature-request.yml` 收集功能需求的使用场景与预期行为；`.github/ISSUE_TEMPLATE/config.yml` 禁用空白 issue。
 - 拆分来源项目：MeowConsole，Modrinth 公开页 `https://modrinth.com/mod/meowconsole`。
 - 当前主线目标：Minecraft `26.2`，Java `25`；当前发布准备版本 `1.5.0`；Fabric Loader `0.19.3` / Fabric API `0.153.0+26.2`；NeoForge 目标版本 `26.2.0.7-beta`。
 - 分支隔离策略：`main` 只维护 Minecraft `26.2` / `1.5.x+` 主线；`maintenance/26.1.x` 从 `e7b3966`（`1.2.2` 发布提交）切出，只维护 Minecraft `26.1`、`26.1.1`、`26.1.2` / `1.2.x` 补丁线。不要把 26.2 的 Gradle 版本、loader metadata、发布脚本 game_versions 直接合入 26.1.x 分支；跨版本 bugfix 或 Paper parity 修复用 cherry-pick，并在目标分支逐项复查 `gradle.properties`、`fabric.mod.json`、`neoforge.mods.toml`、`tools/publish-modrinth.ps1` 与压测命令。

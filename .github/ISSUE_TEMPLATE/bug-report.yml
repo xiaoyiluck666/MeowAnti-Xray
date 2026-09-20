@@ -1,0 +1,112 @@
+name: Bug report
+description: Report a reproducible problem with Meow Anti-Xray.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a problem. Please complete every required field so that we can reproduce and diagnose it.
+
+  - type: dropdown
+    id: loader
+    attributes:
+      label: Loader
+      description: Select the server loader that shows the problem.
+      options:
+        - Fabric
+        - NeoForge
+        - Both Fabric and NeoForge
+        - Other / unsure
+    validations:
+      required: true
+
+  - type: input
+    id: minecraft-version
+    attributes:
+      label: Minecraft version
+      placeholder: "For example: 26.2"
+    validations:
+      required: true
+
+  - type: input
+    id: loader-version
+    attributes:
+      label: Loader version
+      placeholder: "For example: Fabric Loader 0.19.4 or NeoForge 26.2.0.69"
+    validations:
+      required: true
+
+  - type: input
+    id: mod-version
+    attributes:
+      label: Meow Anti-Xray version
+      placeholder: "For example: 1.6.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the actual behavior and the behavior you expected instead.
+      placeholder: Tell us what you were doing, what happened, and what you expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest repeatable sequence. Include the world, dimension, player state, commands, and configuration changes when relevant.
+      placeholder: |
+        1. Start a server with ...
+        2. Join as ...
+        3. Run / do ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: latest-log
+    attributes:
+      label: Complete error log
+      description: Paste the full error and stack trace from latest.log, including at least 30 lines before the first error. For long logs, attach the file or provide a paste link.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: mod-list
+    attributes:
+      label: Installed mods and plugins
+      description: Include all server-side mods/plugins and their versions. State "none" if Meow Anti-Xray is the only one.
+      placeholder: |
+        - fabric-api 0.158.0+26.2
+        - meowantixray 1.6.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: antixray-config
+    attributes:
+      label: Meow Anti-Xray configuration
+      description: Paste config/meowantixray.yml. Remove only genuine secrets; do not omit relevant settings.
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: player-data
+    attributes:
+      label: Player-data details (only for player-data errors)
+      description: If the log says "Failed to load player data" or similar, include the affected player name/UUID and whether world/playerdata/<UUID>.dat and .dat_old exist. Do not upload playerdata files unless requested.
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and included the required diagnostic information.
+          required: true
+        - label: I made a backup before testing changes to my world or player data.
+          required: true
