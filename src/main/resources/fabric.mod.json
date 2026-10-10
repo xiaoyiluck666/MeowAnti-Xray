@@ -23,7 +23,7 @@
     "meowantixray.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.18.4",
+    "fabricloader": ">=0.19.5",
     "minecraft": ">=26.1 <=26.1.2",
     "java": ">=25",
     "fabric-api": ">=0.144.0+26.1"

@@ -2,11 +2,12 @@ package com.meowantixray.neoforge;
 
 import com.meowantixray.MeowAntiXrayMod;
 import com.meowantixray.MeowAntiXrayCommands;
+import java.lang.reflect.Method;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
@@ -21,7 +22,7 @@ public final class MeowAntiXrayNeoForgeMod {
         NeoForge.EVENT_BUS.addListener(this::onServerTick);
         NeoForge.EVENT_BUS.addListener(this::onPlayerJoin);
         NeoForge.EVENT_BUS.addListener(this::onPlayerDisconnect);
-        NeoForge.EVENT_BUS.addListener(this::onBlockBreak);
+        registerBlockBreakListener();
     }
 
     private void onRegisterCommands(RegisterCommandsEvent event) {
@@ -52,10 +53,34 @@ public final class MeowAntiXrayNeoForgeMod {
         }
     }
 
-    private void onBlockBreak(BreakBlockEvent event) {
-        if (event.getPlayer() instanceof net.minecraft.server.level.ServerPlayer player
-            && event.getLevel() instanceof net.minecraft.server.level.ServerLevel level) {
-            MeowAntiXrayMod.onPlayerBreakBlock(level, player, event.getPos());
+    private void registerBlockBreakListener() {
+        // NeoForge renamed this event between the 26.1.1 and 26.1.2 builds.
+        for (String name : new String[] {
+            "net.neoforged.neoforge.event.level.block.BreakBlockEvent",
+            "net.neoforged.neoforge.event.level.BlockEvent$BreakEvent"
+        }) {
+            try {
+                Class<? extends BlockEvent> eventType = Class.forName(name).asSubclass(BlockEvent.class);
+                Method getPlayer = eventType.getMethod("getPlayer");
+                NeoForge.EVENT_BUS.addListener(eventType, event -> onBlockBreak(event, getPlayer));
+                return;
+            } catch (ClassNotFoundException ignored) {
+                // Try the other supported event name.
+            } catch (ReflectiveOperationException exception) {
+                throw new IllegalStateException("Could not register NeoForge block break event " + name, exception);
+            }
+        }
+        throw new IllegalStateException("No supported NeoForge block break event was found");
+    }
+
+    private void onBlockBreak(BlockEvent event, Method getPlayer) {
+        try {
+            if (getPlayer.invoke(event) instanceof net.minecraft.server.level.ServerPlayer player
+                && event.getLevel() instanceof net.minecraft.server.level.ServerLevel level) {
+                MeowAntiXrayMod.onPlayerBreakBlock(level, player, event.getPos());
+            }
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Could not read NeoForge block break player", exception);
         }
     }
 }

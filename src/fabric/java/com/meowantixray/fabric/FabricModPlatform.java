@@ -3,16 +3,17 @@ package com.meowantixray.fabric;
 import com.meowantixray.platform.LoadedModInfo;
 import com.meowantixray.platform.LoaderType;
 import com.meowantixray.platform.ModPlatform;
+import com.meowantixray.platform.PlatformSupport;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.metadata.ModOrigin;
 import net.minecraft.server.level.ServerPlayer;
+import org.eclipse.jdt.annotation.NonNull;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 final class FabricModPlatform implements ModPlatform {
@@ -44,9 +45,9 @@ final class FabricModPlatform implements ModPlatform {
     }
 
     @Override
-    public Collection<LoadedModInfo> loadedMods() {
+    public Collection<@NonNull LoadedModInfo> loadedMods() {
         Path modsDir = configDir().resolveSibling("mods").normalize();
-        List<LoadedModInfo> loaded = new ArrayList<>();
+        List<@NonNull LoadedModInfo> loaded = new ArrayList<>();
         for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
             Path first = null;
             ModOrigin origin = mod.getOrigin();
@@ -66,13 +67,12 @@ final class FabricModPlatform implements ModPlatform {
                 userProvided
             ));
         }
-        loaded.sort((left, right) -> left.id().toLowerCase(Locale.ROOT).compareTo(right.id().toLowerCase(Locale.ROOT)));
-        return loaded;
+        return PlatformSupport.sortedLoadedMods(loaded);
     }
 
     @Override
     public boolean hasPermission(ServerPlayer player, String permissionNode) {
-        if (player == null || permissionNode == null || permissionNode.isBlank()) {
+        if (!PlatformSupport.hasUsablePermissionRequest(player, permissionNode)) {
             return false;
         }
         return FabricPermissionsBridge.hasPermission(player, permissionNode);

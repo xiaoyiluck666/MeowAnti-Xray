@@ -3,6 +3,7 @@ package com.meowantixray.platform;
 import java.nio.file.Path;
 import java.util.Collection;
 import net.minecraft.server.level.ServerPlayer;
+import org.eclipse.jdt.annotation.NonNull;
 
 public final class PlatformHelper {
     private static volatile ModPlatform platform;
@@ -45,7 +46,7 @@ public final class PlatformHelper {
         return get().modVersion(modId).orElse(fallback);
     }
 
-    public static Collection<LoadedModInfo> loadedMods() {
+    public static Collection<@NonNull LoadedModInfo> loadedMods() {
         return get().loadedMods();
     }
 

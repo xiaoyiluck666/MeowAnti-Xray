@@ -18,7 +18,7 @@ param(
     [switch] $Upload,
     [switch] $SkipBuild,
     [string] $Version,
-    [string[]] $GameVersions = @("26.1", "26.1.1", "26.1.2"),
+    [string[]] $GameVersions = @("26.1.x"),
     [string] $ProjectId = "8pl8obwY",
     [string] $ProjectSlug = "meowanti-xray",
     [string] $FabricApiProjectId = "P7dR8mSH",
@@ -187,6 +187,20 @@ function Get-ModrinthVersions {
     return @(Invoke-RestMethod -Uri "https://api.modrinth.com/v2/project/$Slug/version" -Headers $headers)
 }
 
+function Get-ModrinthDisplayGameVersion {
+    param([string[]] $Versions)
+
+    if ($Versions.Count -ne 1 -or [string]::IsNullOrWhiteSpace($Versions[0])) {
+        throw "Use exactly one -GameVersions value for a release. The Modrinth display version must identify one Minecraft support line."
+    }
+
+    $gameVersion = $Versions[0].Trim()
+    if ($gameVersion -notmatch '^\d+\.\d+(?:\.x)?$') {
+        throw "Unsupported -GameVersions value '$gameVersion'. Expected a support line such as 26.3 or 26.1.x."
+    }
+    return "mc$gameVersion"
+}
+
 function New-VersionPayload {
     param(
         [string] $Name,
@@ -202,10 +216,14 @@ function New-VersionPayload {
         version_number = $VersionNumber
         changelog = $Changelog
         dependencies = $Dependencies
-        game_versions = $GameVersions
+        game_versions = @(if ($GameVersions.Count -eq 1 -and $GameVersions[0] -eq "26.1.x") {
+            "26.1", "26.1.1", "26.1.2"
+        } else {
+            $GameVersions
+        })
         version_type = "release"
         loaders = @($Loader)
-        featured = $false
+        featured = $true
         status = "listed"
         requested_status = "listed"
         file_parts = @("file")
@@ -301,8 +319,9 @@ foreach ($path in @($zhPath, $enPath)) {
 }
 $changelog = ((Get-Content -Path $zhPath -Raw).Trim() + "`n`n---`n`n" + (Get-Content -Path $enPath -Raw).Trim())
 
-$fabricVersionNumber = "$Version+fabric"
-$neoforgeVersionNumber = "$Version+neoforge"
+$displayGameVersion = Get-ModrinthDisplayGameVersion -Versions $GameVersions
+$fabricVersionNumber = "$Version+$displayGameVersion.fabric"
+$neoforgeVersionNumber = "$Version+$displayGameVersion.neoforge"
 $existingVersions = Get-ModrinthVersions -Slug $ProjectSlug
 $existingNumbers = @($existingVersions | ForEach-Object { $_.version_number })
 $targetVersionNumbers = @($fabricVersionNumber, $neoforgeVersionNumber)

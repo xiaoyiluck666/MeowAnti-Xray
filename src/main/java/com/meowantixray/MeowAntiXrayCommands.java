@@ -41,6 +41,10 @@ public final class MeowAntiXrayCommands {
             .executes(context -> sendAntiXrayStatus(context.getSource()))
             .then(Commands.literal("status")
                 .executes(context -> sendAntiXrayStatus(context.getSource())))
+            .then(Commands.literal("config")
+                .executes(context -> sendAntiXrayConfig(context.getSource())))
+            .then(Commands.literal("validate")
+                .executes(context -> validateAntiXrayConfig(context.getSource())))
             .then(Commands.literal("reload")
                 .executes(context -> reloadAntiXray(context.getSource())))
             .then(Commands.literal("profile")
@@ -100,14 +104,26 @@ public final class MeowAntiXrayCommands {
         return 1;
     }
 
+    private static int sendAntiXrayConfig(CommandSourceStack source) {
+        sendCommandLines(source, MeowAntiXrayMod.fakeOre().configDetails(), false);
+        return 1;
+    }
+
+    private static int validateAntiXrayConfig(CommandSourceStack source) {
+        var report = MeowAntiXrayMod.fakeOre().validateConfig();
+        sendCommandLines(source, report.lines(), !report.valid());
+        return report.valid() ? 1 : 0;
+    }
+
     private static int reloadAntiXray(CommandSourceStack source) {
         var report = MeowAntiXrayMod.fakeOre().reloadConfigWithSummary();
         List<String> lines = new ArrayList<>();
         lines.add("config source: " + report.configLoadSummary());
         lines.addAll(report.statusLines());
         lines.addAll(report.changeLines());
+        lines.addAll(report.issueLines());
         sendCommandLines(source, lines, true);
-        return 1;
+        return report.applied() ? 1 : 0;
     }
 
     private static int sendAntiXrayProfile(CommandSourceStack source) {
@@ -200,7 +216,7 @@ public final class MeowAntiXrayCommands {
     private static void sendCommandLines(CommandSourceStack source, List<String> lines, boolean broadcastToOps) {
         List<String> safeLines = lines.stream()
             .filter(Objects::nonNull)
-            .map(String::strip)
+            .map(line -> line.strip())
             .filter(line -> !line.isEmpty())
             .toList();
         if (safeLines.isEmpty()) {
@@ -222,7 +238,7 @@ public final class MeowAntiXrayCommands {
     static String formatCompactCommandOutput(List<String> lines) {
         return lines.stream()
             .filter(Objects::nonNull)
-            .map(String::strip)
+            .map(line -> line.strip())
             .filter(line -> !line.isEmpty())
             .reduce((left, right) -> left + " || " + right)
             .orElse("");

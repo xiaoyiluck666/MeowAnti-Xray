@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.function.IntFunction;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.file.Path;
 
 public final class FakeOreService {
     private static final ThreadLocal<SectionVisibilityScratch> SECTION_VISIBILITY_SCRATCH =
@@ -142,37 +143,66 @@ public final class FakeOreService {
     };
 
     public void reloadConfig() {
-        this.config = FakeOreConfig.loadOrCreate();
-        if (config.enforceEngineMode2 && config.engineMode != 2) {
-            config.engineMode = 2;
+        activateConfig(globalPalette == null);
+    }
+
+    private ActivationResult activateConfig(boolean allowCreate) {
+        Path path = PlatformHelper.configDir().resolve("meowantixray.yml");
+        FakeOreConfig.LoadResult load = FakeOreConfig.loadCandidate(path, allowCreate);
+        List<FakeOreConfig.ValidationIssue> issues = new ArrayList<>(load.issues());
+        if (load.valid()) {
+            issues.addAll(validateRuntimeConfig(load.config()));
         }
-        if (!config.asyncChunkRewrite) {
-            shutdownAsyncExecutor();
+        boolean valid = issues.stream().noneMatch(issue -> issue.isError());
+        if (!valid) {
+            String summary;
+            if (globalPalette == null) {
+                FakeOreConfig defaults = FakeOreConfig.defaults();
+                summary = "invalid config on disk; using protected in-memory defaults: " + path;
+                defaults.markLoadSummary(summary);
+                applyConfig(defaults);
+            } else {
+                summary = "reload rejected; last-known-good config retained: " + path;
+                config.markLoadSummary(summary);
+            }
+            MeowAntiXrayMod.LOGGER.warn("Meow Anti-Xray config activation rejected: {}", formatValidationIssues(issues));
+            return new ActivationResult(false, summary, List.copyOf(issues));
         }
 
-        this.globalPalette = buildPalette(
-            config.enabled,
-            config.engineMode,
-            config.maxBlockHeight,
-            config.onlyObfuscateHiddenBlocks,
-            config.mode2ObfuscateReplacementBlocks,
-            config.guaranteeHideAllHiddenBlocks,
-            config.lavaObscures,
-            config.usePermission,
-            config.bypassPermission,
-            config.updateRadius,
-            config.updateIntervalTicks,
-            config.maxBlocksPerChunk,
-            config.hiddenBlocks,
-            config.replacementBlocks
+        FakeOreConfig candidate = load.config();
+        applyConfig(candidate);
+        if (!load.created()) {
+            candidate.supplementAfterValidation(path, load.sourceLines());
+        }
+        return new ActivationResult(true, candidate.loadSummary(), List.copyOf(issues));
+    }
+
+    private void applyConfig(FakeOreConfig candidate) {
+        if (candidate.enforceEngineMode2 && candidate.engineMode != 2) {
+            candidate.engineMode = 2;
+        }
+        Palette nextGlobalPalette = buildPalette(
+            candidate.enabled,
+            candidate.engineMode,
+            candidate.maxBlockHeight,
+            candidate.onlyObfuscateHiddenBlocks,
+            candidate.mode2ObfuscateReplacementBlocks,
+            candidate.guaranteeHideAllHiddenBlocks,
+            candidate.lavaObscures,
+            candidate.usePermission,
+            candidate.bypassPermission,
+            candidate.updateRadius,
+            candidate.updateIntervalTicks,
+            candidate.maxBlocksPerChunk,
+            candidate.hiddenBlocks,
+            candidate.replacementBlocks
         );
-
-        this.dimensionPalettes.clear();
-        for (Map.Entry<String, FakeOreConfig.DimensionSettings> entry : config.dimensionSettings.entrySet()) {
+        Map<String, Palette> nextDimensionPalettes = new HashMap<>();
+        for (Map.Entry<String, FakeOreConfig.DimensionSettings> entry : candidate.dimensionSettings.entrySet()) {
             FakeOreConfig.DimensionSettings ds = entry.getValue();
-            int mode = config.enforceEngineMode2 ? 2 : ds.engineMode;
+            int mode = candidate.enforceEngineMode2 ? 2 : ds.engineMode;
             Palette palette = buildPalette(
-                effectiveEnabled(config.enabled, ds.enabled),
+                effectiveEnabled(candidate.enabled, ds.enabled),
                 mode,
                 ds.maxBlockHeight,
                 ds.onlyObfuscateHiddenBlocks,
@@ -181,13 +211,20 @@ public final class FakeOreService {
                 ds.lavaObscures,
                 ds.usePermission,
                 ds.bypassPermission,
-                config.updateRadius,
-                config.updateIntervalTicks,
-                config.maxBlocksPerChunk,
+                candidate.updateRadius,
+                candidate.updateIntervalTicks,
+                candidate.maxBlocksPerChunk,
                 ds.hiddenBlocks,
                 ds.replacementBlocks
             );
-            dimensionPalettes.put(normalizeDimensionKey(entry.getKey()), palette);
+            nextDimensionPalettes.put(normalizeDimensionKey(entry.getKey()), palette);
+        }
+        this.config = candidate;
+        this.globalPalette = nextGlobalPalette;
+        this.dimensionPalettes.clear();
+        this.dimensionPalettes.putAll(nextDimensionPalettes);
+        if (!candidate.asyncChunkRewrite) {
+            shutdownAsyncExecutor();
         }
     }
 
@@ -566,6 +603,55 @@ public final class FakeOreService {
         return formatStatusLines(captureStatusSnapshot());
     }
 
+    public List<String> configDetails() {
+        List<String> lines = new ArrayList<>();
+        if (globalPalette == null) {
+            lines.add("config: not loaded yet");
+            lines.add("config-path: " + configPathSummary());
+            return lines;
+        }
+
+        lines.add("config source: " + config.loadSummary());
+        lines.add("config-path: " + configPathSummary());
+        lines.add("global: enabled=" + globalPalette.enabled
+            + ", mode=" + globalPalette.engineMode
+            + ", max-block-height=" + globalPalette.maxBlockHeight
+            + ", hidden=" + globalPalette.hiddenBlockIds.size()
+            + ", replacement=" + globalPalette.replacementBlockIds.size()
+            + ", update-radius=" + globalPalette.updateRadius
+            + ", lava-obscures=" + globalPalette.lavaObscures
+            + ", enforce-mode2=" + config.enforceEngineMode2);
+        lines.add("permission: use-permission=" + globalPalette.usePermission
+            + ", bypass-permission=" + globalPalette.bypassPermission);
+        lines.add("async: enabled=" + config.asyncChunkRewrite
+            + ", workerThreads=" + Math.max(1, config.asyncWorkerThreads)
+            + ", queueSize=" + Math.max(0, config.asyncQueueSize)
+            + ", capacity=" + asyncRewriteCapacity());
+
+        List<String> keys = new ArrayList<>(dimensionPalettes.keySet());
+        keys.sort((left, right) -> left.compareToIgnoreCase(right));
+        if (keys.isEmpty()) {
+            lines.add("dimensions: none");
+            return lines;
+        }
+        for (String key : keys) {
+            Palette palette = dimensionPalettes.get(key);
+            if (palette == null) {
+                continue;
+            }
+            lines.add("dimension " + key
+                + ": enabled=" + palette.enabled
+                + ", mode=" + palette.engineMode
+                + ", max-block-height=" + palette.maxBlockHeight
+                + ", hidden=" + palette.hiddenBlockIds.size()
+                + ", replacement=" + palette.replacementBlockIds.size()
+                + ", update-radius=" + palette.updateRadius
+                + ", use-permission=" + palette.usePermission
+                + ", bypass-permission=" + palette.bypassPermission);
+        }
+        return lines;
+    }
+
     public boolean isEnabled() {
         return globalPalette != null && globalPalette.enabled;
     }
@@ -651,13 +737,104 @@ public final class FakeOreService {
     public ReloadReport reloadConfigWithSummary() {
         RuntimeStatusSnapshot before = captureStatusSnapshot();
         boolean hadLoadedConfig = globalPalette != null;
-        reloadConfig();
+        ActivationResult activation = activateConfig(false);
         RuntimeStatusSnapshot after = captureStatusSnapshot();
+        List<String> changes = activation.applied()
+            ? describeConfigChanges(hadLoadedConfig ? before : null, after)
+            : List.of("changes: none; last-known-good active configuration retained");
         return new ReloadReport(
-            after.configLoadSummary(),
+            activation.summary(),
             formatStatusLines(after),
-            describeConfigChanges(hadLoadedConfig ? before : null, after)
+            changes,
+            formatValidationIssues(activation.issues()),
+            activation.applied()
         );
+    }
+
+    public ValidationReport validateConfig() {
+        Path path = PlatformHelper.configDir().resolve("meowantixray.yml");
+        FakeOreConfig.LoadResult load = FakeOreConfig.loadCandidate(path, false);
+        List<FakeOreConfig.ValidationIssue> issues = new ArrayList<>(load.issues());
+        if (load.valid()) {
+            issues.addAll(validateRuntimeConfig(load.config()));
+        }
+        long errorCount = issues.stream().filter(issue -> issue.isError()).count();
+        long warningCount = issues.size() - errorCount;
+        boolean valid = errorCount == 0;
+        List<String> lines = new ArrayList<>();
+        lines.add("validation: " + (valid ? "valid" : "invalid")
+            + ", errors=" + errorCount + ", warnings=" + warningCount);
+        lines.add("config-path: " + path);
+        lines.addAll(formatValidationIssues(issues));
+        lines.add(valid
+            ? "result: safe to reload"
+            : "result: reload blocked; active configuration will remain unchanged");
+        return new ValidationReport(valid, List.copyOf(lines));
+    }
+
+    private List<FakeOreConfig.ValidationIssue> validateRuntimeConfig(FakeOreConfig candidate) {
+        List<FakeOreConfig.ValidationIssue> issues = new ArrayList<>();
+        validatePaletteConfig("global", candidate.enabled, candidate.engineMode, candidate.enforceEngineMode2,
+            candidate.hiddenBlocks, candidate.replacementBlocks, issues);
+        for (Map.Entry<String, FakeOreConfig.DimensionSettings> entry : candidate.dimensionSettings.entrySet()) {
+            FakeOreConfig.DimensionSettings settings = entry.getValue();
+            validatePaletteConfig("dimension " + normalizeDimensionKey(entry.getKey()),
+                effectiveEnabled(candidate.enabled, settings.enabled), settings.engineMode, candidate.enforceEngineMode2,
+                settings.hiddenBlocks, settings.replacementBlocks, issues);
+        }
+        return issues;
+    }
+
+    private void validatePaletteConfig(
+        String scope,
+        boolean enabled,
+        int engineMode,
+        boolean enforceEngineMode2,
+        List<String> hiddenIds,
+        List<String> replacementIds,
+        List<FakeOreConfig.ValidationIssue> issues
+    ) {
+        if (enabled && hiddenIds.isEmpty()) {
+            issues.add(FakeOreConfig.ValidationIssue.warning(0, scope, "hidden-blocks is empty; no hidden ores will be protected"));
+        }
+        if (enabled && replacementIds.isEmpty()) {
+            issues.add(FakeOreConfig.ValidationIssue.error(0, scope, "replacement-blocks is empty"));
+        }
+        if (enforceEngineMode2 && engineMode != 2) {
+            issues.add(FakeOreConfig.ValidationIssue.warning(0, scope,
+                "engine-mode=" + engineMode + " will be forced to 2 by enforce-engine-mode-2"));
+        }
+        validateBlockIds(scope + " hidden-blocks", hiddenIds, issues);
+        validateBlockIds(scope + " replacement-blocks", replacementIds, issues);
+    }
+
+    private void validateBlockIds(
+        String scope,
+        List<String> ids,
+        List<FakeOreConfig.ValidationIssue> issues
+    ) {
+        Set<String> seen = new LinkedHashSet<>();
+        for (String id : ids) {
+            if (!seen.add(id)) {
+                issues.add(FakeOreConfig.ValidationIssue.warning(0, scope, "duplicate block id: " + id));
+            }
+            if (MinecraftCompat.findBlockById(id).isEmpty()) {
+                issues.add(FakeOreConfig.ValidationIssue.error(0, scope, "unknown block id: " + id));
+            }
+        }
+    }
+
+    private static List<String> formatValidationIssues(List<FakeOreConfig.ValidationIssue> issues) {
+        if (issues.isEmpty()) {
+            return List.of("issues: none");
+        }
+        List<String> lines = new ArrayList<>();
+        for (FakeOreConfig.ValidationIssue issue : issues) {
+            String location = issue.line() > 0 ? " line " + issue.line() : "";
+            lines.add(issue.severity().name().toLowerCase(java.util.Locale.ROOT)
+                + location + " [" + issue.scope() + "]: " + issue.message());
+        }
+        return lines;
     }
 
     public synchronized String profileSummary() {
@@ -3131,7 +3308,7 @@ public final class FakeOreService {
         }
         List<DimensionStatus> dimensions = new ArrayList<>();
         List<String> keys = new ArrayList<>(dimensionPalettes.keySet());
-        keys.sort(String::compareToIgnoreCase);
+        keys.sort((left, right) -> left.compareToIgnoreCase(right));
         for (String key : keys) {
             Palette palette = dimensionPalettes.get(key);
             if (palette == null) {
@@ -3286,7 +3463,19 @@ public final class FakeOreService {
     public record ReloadReport(
         String configLoadSummary,
         List<String> statusLines,
-        List<String> changeLines
+        List<String> changeLines,
+        List<String> issueLines,
+        boolean applied
+    ) {
+    }
+
+    public record ValidationReport(boolean valid, List<String> lines) {
+    }
+
+    private record ActivationResult(
+        boolean applied,
+        String summary,
+        List<FakeOreConfig.ValidationIssue> issues
     ) {
     }
 

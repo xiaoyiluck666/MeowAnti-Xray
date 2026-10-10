@@ -4,15 +4,16 @@ import com.meowantixray.compat.MinecraftCompat;
 import com.meowantixray.platform.LoadedModInfo;
 import com.meowantixray.platform.LoaderType;
 import com.meowantixray.platform.ModPlatform;
+import com.meowantixray.platform.PlatformSupport;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
+import org.eclipse.jdt.annotation.NonNull;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 final class NeoForgeModPlatform implements ModPlatform {
@@ -50,9 +51,9 @@ final class NeoForgeModPlatform implements ModPlatform {
     }
 
     @Override
-    public Collection<LoadedModInfo> loadedMods() {
+    public Collection<@NonNull LoadedModInfo> loadedMods() {
         Path modsDir = gameDir().resolve("mods").toAbsolutePath().normalize();
-        List<LoadedModInfo> loaded = new ArrayList<>();
+        List<@NonNull LoadedModInfo> loaded = new ArrayList<>();
         for (var mod : ModList.get().getMods()) {
             Path origin = null;
             try {
@@ -67,13 +68,12 @@ final class NeoForgeModPlatform implements ModPlatform {
                 userProvided
             ));
         }
-        loaded.sort((left, right) -> left.id().toLowerCase(Locale.ROOT).compareTo(right.id().toLowerCase(Locale.ROOT)));
-        return loaded;
+        return PlatformSupport.sortedLoadedMods(loaded);
     }
 
     @Override
     public boolean hasPermission(ServerPlayer player, String permissionNode) {
-        if (player == null || permissionNode == null || permissionNode.isBlank()) {
+        if (!PlatformSupport.hasUsablePermissionRequest(player, permissionNode)) {
             return false;
         }
         return NeoForgePermissionsBridge.hasPermission(player, permissionNode);

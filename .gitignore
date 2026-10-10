@@ -27,3 +27,4 @@ run/
 
 # Local MCP context docs (do not push)
 docs/
+logs/

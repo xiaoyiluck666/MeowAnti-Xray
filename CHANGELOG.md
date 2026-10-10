@@ -2,10 +2,37 @@
 
 Version-specific changelogs are stored in `changelogs/`.
 
-## 1.2.3
+## 1.7.0
 
-- 中文：[changelogs/1.2.3.zh-CN.md](changelogs/1.2.3.zh-CN.md)
-- English: [changelogs/1.2.3.en-US.md](changelogs/1.2.3.en-US.md)
+Separate Fabric / NeoForge builds for Minecraft 26.3, 26.2, and 26.1.x.
+
+- 中文：[changelogs/1.7.0.zh-CN.md](changelogs/1.7.0.zh-CN.md)
+- English: [changelogs/1.7.0.en-US.md](changelogs/1.7.0.en-US.md)
+
+## 1.6.0
+
+- 中文：[changelogs/1.6.0.zh-CN.md](changelogs/1.6.0.zh-CN.md)
+- English: [changelogs/1.6.0.en-US.md](changelogs/1.6.0.en-US.md)
+
+## 1.5.0
+
+- 中文：[changelogs/1.5.0.zh-CN.md](changelogs/1.5.0.zh-CN.md)
+- English: [changelogs/1.5.0.en-US.md](changelogs/1.5.0.en-US.md)
+
+## 1.4.0
+
+- 中文：[changelogs/1.4.0.zh-CN.md](changelogs/1.4.0.zh-CN.md)
+- English: [changelogs/1.4.0.en-US.md](changelogs/1.4.0.en-US.md)
+
+## 1.3.1
+
+- 中文：[changelogs/1.3.1.zh-CN.md](changelogs/1.3.1.zh-CN.md)
+- English: [changelogs/1.3.1.en-US.md](changelogs/1.3.1.en-US.md)
+
+## 1.3.0
+
+- 中文：[changelogs/1.3.0.zh-CN.md](changelogs/1.3.0.zh-CN.md)
+- English: [changelogs/1.3.0.en-US.md](changelogs/1.3.0.en-US.md)
 
 ## 1.2.2
 

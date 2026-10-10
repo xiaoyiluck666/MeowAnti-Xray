@@ -2,50 +2,219 @@
 'use strict'
 
 const crypto = require('crypto')
+const fs = require('fs')
 const net = require('net')
+const path = require('path')
 const zlib = require('zlib')
 
-const PROTOCOL_VERSION = 775
-
-const CLIENTBOUND = {
-  LOGIN_SET_COMPRESSION: 0x03,
-  LOGIN_SUCCESS: 0x02,
-  LOGIN_COOKIE_REQUEST: 0x04,
-  CONFIG_FINISH: 0x03,
-  CONFIG_COOKIE_REQUEST: 0x04,
-  CONFIG_PLUGIN_MESSAGE: 0x05,
-  CONFIG_SELECT_KNOWN_PACKS: 0x0e,
-  CONFIG_PING: 0x13,
-  PLAY_CHUNK_BATCH_START: 0x0c,
-  PLAY_CHUNK_BATCH_FINISHED: 0x0b,
-  PLAY_KEEP_ALIVE: 0x2c,
-  PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
-  PLAY_PING: 0x3d,
-  PLAY_PLAYER_POSITION: 0x48
-}
-
-const SERVERBOUND = {
-  LOGIN_ACKNOWLEDGED: 0x03,
-  LOGIN_COOKIE_RESPONSE: 0x02,
-  CONFIG_CLIENT_INFORMATION: 0x00,
-  CONFIG_COOKIE_RESPONSE: 0x04,
-  CONFIG_PLUGIN_MESSAGE: 0x05,
-  CONFIG_SELECT_KNOWN_PACKS: 0x07,
-  CONFIG_PONG: 0x09,
-  CONFIG_FINISH_ACKNOWLEDGED: 0x03,
-  PLAY_ACCEPT_TELEPORTATION: 0x00,
-  PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
-  PLAY_TICK_END: 0x0d,
-  PLAY_KEEP_ALIVE: 0x1c,
-  PLAY_POSITION_LOOK: 0x1f,
-  PLAY_PONG: 0x2c,
-  PLAY_PLAYER_LOADED: 0x2c
+const PROTOCOLS = {
+  '26.1.2': {
+    protocolVersion: 775,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x13,
+      PLAY_CHUNK_BATCH_START: 0x0c,
+      PLAY_CHUNK_BATCH_FINISHED: 0x0b,
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
+  '26.2': {
+    protocolVersion: 776,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x13,
+      PLAY_CHUNK_BATCH_START: 0x0c,
+      PLAY_CHUNK_BATCH_FINISHED: 0x0b,
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
+  '26.3': {
+    protocolVersion: 777,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0f,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x14,
+      PLAY_CHUNK_BATCH_START: [0x0b, 0x0c],
+      PLAY_CHUNK_BATCH_FINISHED: [0x0a, 0x0b],
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: [0x2d, 0x2e],
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
+  '26.2-neoforge': {
+    protocolVersion: 776,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x13,
+      PLAY_CHUNK_BATCH_START: [0x0b, 0x0c],
+      PLAY_CHUNK_BATCH_FINISHED: [0x0a, 0x0b],
+      PLAY_KEEP_ALIVE: [0x2b, 0x2c],
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: [0x2c, 0x2d],
+      PLAY_PING: [0x3c, 0x3d],
+      PLAY_PLAYER_POSITION: [0x47, 0x48]
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
+  '26.3-neoforge': {
+    protocolVersion: 777,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0f,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x14,
+      PLAY_CHUNK_BATCH_START: [0x0b, 0x0c],
+      PLAY_CHUNK_BATCH_FINISHED: [0x0a, 0x0b],
+      PLAY_KEEP_ALIVE: [0x2b, 0x2c],
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: [0x2d, 0x2e],
+      PLAY_PING: [0x3c, 0x3d],
+      PLAY_PLAYER_POSITION: [0x47, 0x48]
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  }
 }
 
 function parseArgs(argv) {
   const args = {
     host: '127.0.0.1',
     port: 25565,
+    mcVersion: '26.1.2',
     clients: 1,
     duration: 60,
     name: 'LoadBot',
@@ -62,9 +231,12 @@ function parseArgs(argv) {
     rconPort: 25575,
     rconPassword: '',
     gamemode: '',
+    reuseNames: false,
+    sessionId: crypto.randomBytes(2).toString('hex'),
     teleportInterval: 2500,
     teleportStep: 192,
     teleportY: null,
+    jsonOutput: '',
     verbose: false
   }
 
@@ -78,6 +250,11 @@ function parseArgs(argv) {
         break
       case '--port':
         args.port = Number(next)
+        i++
+        break
+      case '--mc-version':
+      case '--minecraft-version':
+        args.mcVersion = next
         i++
         break
       case '--clients':
@@ -143,6 +320,13 @@ function parseArgs(argv) {
         args.gamemode = next
         i++
         break
+      case '--reuse-names':
+        args.reuseNames = true
+        break
+      case '--session-id':
+        args.sessionId = next
+        i++
+        break
       case '--teleport-interval':
         args.teleportInterval = Number(next)
         i++
@@ -153,6 +337,10 @@ function parseArgs(argv) {
         break
       case '--teleport-y':
         args.teleportY = Number(next)
+        i++
+        break
+      case '--json-output':
+        args.jsonOutput = next
         i++
         break
       case '--verbose':
@@ -169,6 +357,7 @@ function parseArgs(argv) {
   }
 
   if (!Number.isInteger(args.port) || args.port < 1 || args.port > 65535) throw new Error('Invalid --port')
+  if (!PROTOCOLS[args.mcVersion]) throw new Error(`Unsupported --mc-version: ${args.mcVersion}`)
   if (!Number.isInteger(args.clients) || args.clients < 1 || args.clients > 200) throw new Error('Invalid --clients')
   if (!Number.isFinite(args.duration) || args.duration <= 0) throw new Error('Invalid --duration')
   if (!Number.isFinite(args.startX) || !Number.isFinite(args.startY) || !Number.isFinite(args.startZ)) throw new Error('Invalid start position')
@@ -176,16 +365,19 @@ function parseArgs(argv) {
   if (!Number.isInteger(args.moveInterval) || args.moveInterval < 50) throw new Error('Invalid --move-interval')
   if (args.rconTeleport && !args.rconPassword) throw new Error('--rcon-teleport requires --rcon-password')
   if (args.gamemode && !['survival', 'creative', 'adventure', 'spectator'].includes(args.gamemode)) throw new Error('Invalid --gamemode')
+  args.sessionId = sanitizeUsernamePart(args.sessionId).slice(0, 6)
+  if (!args.reuseNames && args.sessionId.length === 0) throw new Error('Invalid --session-id')
   if (!Number.isInteger(args.rconPort) || args.rconPort < 1 || args.rconPort > 65535) throw new Error('Invalid --rcon-port')
   if (!Number.isInteger(args.teleportInterval) || args.teleportInterval < 250) throw new Error('Invalid --teleport-interval')
   if (!Number.isFinite(args.teleportStep) || args.teleportStep <= 0) throw new Error('Invalid --teleport-step')
   if (args.teleportY !== null && !Number.isFinite(args.teleportY)) throw new Error('Invalid --teleport-y')
+  if (args.jsonOutput) args.jsonOutput = path.resolve(args.jsonOutput)
   if (!args.rconHost) args.rconHost = args.host
   return args
 }
 
 function printHelp() {
-  console.log(`Minecraft 26.1.2 network load runner
+  console.log(`Minecraft 26.x network load runner
 
 Usage:
   node tools/mc-2612-load-runner.js --clients 4 --duration 90
@@ -193,6 +385,7 @@ Usage:
 Options:
   --host <host>                 Server host, default 127.0.0.1
   --port <port>                 Server port, default 25565
+  --mc-version <version>        Protocol profile: 26.3, 26.3-neoforge, 26.2, 26.2-neoforge, or 26.1.2; default 26.1.2
   --clients <n>                 Number of fake network clients, default 1
   --duration <seconds>          Test duration after launch, default 60
   --name <prefix>               Username prefix, default LoadBot
@@ -208,9 +401,12 @@ Options:
   --rcon-host <host>            RCON host, default same as --host
   --rcon-port <port>            RCON port, default 25575
   --gamemode <mode>             Optional RCON gamemode before routing
+  --reuse-names                 Reuse exact usernames instead of adding a session suffix
+  --session-id <text>           Session suffix for fresh usernames, default random 4 hex chars
   --teleport-interval <ms>      RCON teleport interval, default 2500
   --teleport-step <blocks>      RCON route step, default 192
   --teleport-y <number>         RCON teleport Y, default current spawn Y
+  --json-output <path>          Write the final structured result as JSON
   --verbose                     Log protocol noise
 `)
 }
@@ -287,6 +483,18 @@ function offlineUuid(username) {
   return hash
 }
 
+function sanitizeUsernamePart(value) {
+  return String(value || '').replace(/[^A-Za-z0-9_]/g, '')
+}
+
+function buildUsername(prefix, sessionId, reuseNames, index) {
+  const indexSuffix = String(index + 1).padStart(2, '0')
+  const sessionSuffix = reuseNames ? '' : sessionId
+  const maxPrefixLength = Math.max(1, 16 - sessionSuffix.length - indexSuffix.length)
+  const cleanPrefix = sanitizeUsernamePart(prefix).slice(0, maxPrefixLength) || 'LoadBot'.slice(0, maxPrefixLength)
+  return `${cleanPrefix}${sessionSuffix}${indexSuffix}`
+}
+
 function packet(id, payload = Buffer.alloc(0)) {
   return Buffer.concat([varInt(id), payload])
 }
@@ -309,8 +517,11 @@ class LoadClient {
   constructor(index, args, metrics) {
     this.index = index
     this.args = args
+    this.protocol = PROTOCOLS[args.mcVersion]
+    this.clientbound = this.protocol.clientbound
+    this.serverbound = this.protocol.serverbound
     this.metrics = metrics
-    this.username = `${args.name}${String(index + 1).padStart(2, '0')}`
+    this.username = buildUsername(args.name, args.sessionId, args.reuseNames, index)
     this.state = 'handshaking'
     this.compressionThreshold = -1
     this.incoming = Buffer.alloc(0)
@@ -367,6 +578,7 @@ class LoadClient {
     })
 
     this.socket.on('error', error => {
+      if (this.closed && (error.code === 'ERR_STREAM_WRITE_AFTER_END' || error.message === 'write after end')) return
       this.errors++
       this.metrics.errors++
       console.error(`[${this.username}] socket error: ${error.message}`)
@@ -381,7 +593,7 @@ class LoadClient {
 
   sendHandshake(nextState) {
     this.send(0x00, Buffer.concat([
-      varInt(PROTOCOL_VERSION),
+      varInt(this.protocol.protocolVersion),
       mcString(this.args.host),
       uint16(this.args.port),
       varInt(nextState)
@@ -389,7 +601,7 @@ class LoadClient {
   }
 
   send(id, payload = Buffer.alloc(0), compressed = true) {
-    if (!this.socket || this.socket.destroyed) return
+    if (this.closed || !this.socket || this.socket.destroyed || this.socket.writableEnded) return
     const body = packet(id, payload)
     let framed = body
     if (compressed && this.compressionThreshold >= 0) {
@@ -433,79 +645,95 @@ class LoadClient {
   }
 
   handleLoginPacket(id, payload) {
-    if (id === CLIENTBOUND.LOGIN_SET_COMPRESSION) {
+    if (id === this.clientbound.LOGIN_SET_COMPRESSION) {
       const threshold = readVarInt(payload, 0)
       if (threshold) this.compressionThreshold = threshold.value
       this.log(`compression=${this.compressionThreshold}`)
       return
     }
-    if (id === CLIENTBOUND.LOGIN_SUCCESS) {
+    if (id === this.clientbound.LOGIN_SUCCESS) {
       this.metrics.loggedIn++
       this.state = 'configuration'
-      this.send(SERVERBOUND.LOGIN_ACKNOWLEDGED)
-      this.send(SERVERBOUND.CONFIG_CLIENT_INFORMATION, clientInformationPayload())
+      this.send(this.serverbound.LOGIN_ACKNOWLEDGED)
+      this.send(this.serverbound.CONFIG_CLIENT_INFORMATION, clientInformationPayload())
       return
     }
-    if (id === CLIENTBOUND.LOGIN_COOKIE_REQUEST) {
+    if (id === this.clientbound.LOGIN_COOKIE_REQUEST) {
       const key = readVarInt(payload, 0)
-      if (key) this.send(SERVERBOUND.LOGIN_COOKIE_RESPONSE, Buffer.concat([varInt(key.value), bool(false)]))
+      if (key) this.send(this.serverbound.LOGIN_COOKIE_RESPONSE, Buffer.concat([varInt(key.value), bool(false)]))
+      return
+    }
+    if (id === 0x04) {
+      const query = readVarInt(payload, 0)
+      if (query) this.send(0x02, Buffer.concat([varInt(query.value), bool(false)]))
       return
     }
     this.noise('login', id, payload)
   }
 
   handleConfigurationPacket(id, payload) {
-    if (id === CLIENTBOUND.CONFIG_FINISH) {
+    if (id === this.clientbound.CONFIG_FINISH) {
       this.state = 'play'
       this.playAt = Date.now()
       this.metrics.inPlay++
-      this.send(SERVERBOUND.CONFIG_FINISH_ACKNOWLEDGED)
+      this.send(this.serverbound.CONFIG_FINISH_ACKNOWLEDGED)
       if (!this.args.rconTeleport) this.moveTimer = setInterval(() => this.move(), this.args.moveInterval)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_COOKIE_REQUEST) {
-      this.send(SERVERBOUND.CONFIG_COOKIE_RESPONSE, payload)
+    if (id === this.clientbound.CONFIG_KEEP_ALIVE && payload.length === 8) {
+      this.send(this.serverbound.CONFIG_KEEP_ALIVE, payload)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_PLUGIN_MESSAGE) {
-      this.send(SERVERBOUND.CONFIG_PLUGIN_MESSAGE, payload)
+    if (id === this.clientbound.CONFIG_COOKIE_REQUEST) {
+      this.send(this.serverbound.CONFIG_COOKIE_RESPONSE, payload)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_SELECT_KNOWN_PACKS) {
-      this.send(SERVERBOUND.CONFIG_SELECT_KNOWN_PACKS, varInt(0))
+    if (id === this.clientbound.CONFIG_PLUGIN_MESSAGE) {
+      this.noise('configuration custom payload', id, payload)
       return
     }
-    if (id === CLIENTBOUND.CONFIG_PING) {
-      this.send(SERVERBOUND.CONFIG_PONG)
+    if (id === this.clientbound.CONFIG_SELECT_KNOWN_PACKS) {
+      this.send(this.serverbound.CONFIG_SELECT_KNOWN_PACKS, varInt(0))
+      return
+    }
+    if (id === this.clientbound.CONFIG_PING) {
+      this.send(this.serverbound.CONFIG_PONG, payload)
+      return
+    }
+    if (id === this.clientbound.CONFIG_CODE_OF_CONDUCT && this.serverbound.CONFIG_ACCEPT_CODE_OF_CONDUCT >= 0) {
+      this.send(this.serverbound.CONFIG_ACCEPT_CODE_OF_CONDUCT)
       return
     }
     this.noise('configuration', id, payload)
   }
 
   handlePlayPacket(id, payload) {
-    if (id === CLIENTBOUND.PLAY_KEEP_ALIVE) {
+    if (packetMatches(id, this.clientbound.PLAY_KEEP_ALIVE) && payload.length === 8) {
       this.keepAlives++
-      this.send(SERVERBOUND.PLAY_KEEP_ALIVE, payload)
+      this.send(this.serverbound.PLAY_KEEP_ALIVE, payload)
       return
     }
-    if (id === CLIENTBOUND.PLAY_PING) {
-      this.send(SERVERBOUND.PLAY_PONG, payload)
+    if (packetMatches(id, this.clientbound.PLAY_PING)) {
+      this.send(this.serverbound.PLAY_PONG, payload)
       return
     }
-    if (id === CLIENTBOUND.PLAY_PLAYER_POSITION) {
+    if (packetMatches(id, this.clientbound.PLAY_PLAYER_POSITION)) {
       this.acceptPosition(payload)
       return
     }
-    if (id === CLIENTBOUND.PLAY_CHUNK_BATCH_START) {
+    const batchStart = packetMatches(id, this.clientbound.PLAY_CHUNK_BATCH_START)
+    const batchFinished = packetMatches(id, this.clientbound.PLAY_CHUNK_BATCH_FINISHED)
+    if (batchStart) {
       this.batches++
       this.metrics.batches++
+    }
+    if (batchFinished) {
+      this.send(this.serverbound.PLAY_CHUNK_BATCH_RECEIVED, float32(20))
+    }
+    if (batchStart || batchFinished) {
       return
     }
-    if (id === CLIENTBOUND.PLAY_CHUNK_BATCH_FINISHED) {
-      this.send(SERVERBOUND.PLAY_CHUNK_BATCH_RECEIVED, float32(20))
-      return
-    }
-    if (id === CLIENTBOUND.PLAY_LEVEL_CHUNK_WITH_LIGHT) {
+    if (packetMatches(id, this.clientbound.PLAY_LEVEL_CHUNK_WITH_LIGHT)) {
       this.chunks++
       this.metrics.chunks++
       return
@@ -531,8 +759,8 @@ class LoadClient {
     offset += 4
     this.pitch = payload.readFloatBE(offset)
 
-    this.send(SERVERBOUND.PLAY_ACCEPT_TELEPORTATION, varInt(teleportId.value))
-    if (!this.canMove) this.send(SERVERBOUND.PLAY_PLAYER_LOADED)
+    this.send(this.serverbound.PLAY_ACCEPT_TELEPORTATION, varInt(teleportId.value))
+    if (!this.canMove) this.send(this.serverbound.PLAY_PLAYER_LOADED)
     this.canMove = true
     this.positionCorrections++
     this.metrics.positionPackets++
@@ -544,7 +772,7 @@ class LoadClient {
 
   reportPosition() {
     if (!this.canMove) return
-    this.send(SERVERBOUND.PLAY_POSITION_LOOK, Buffer.concat([
+    this.send(this.serverbound.PLAY_POSITION_LOOK, Buffer.concat([
       float64(this.x),
       float64(this.y),
       float64(this.z),
@@ -552,7 +780,7 @@ class LoadClient {
       float32(this.pitch),
       uint8(1)
     ]))
-    this.send(SERVERBOUND.PLAY_TICK_END)
+    this.send(this.serverbound.PLAY_TICK_END)
   }
 
   move() {
@@ -666,6 +894,7 @@ class RconClient {
 
 async function main() {
   const args = parseArgs(process.argv)
+  const runStartedAt = new Date()
   const metrics = {
     connected: 0,
     loggedIn: 0,
@@ -693,6 +922,10 @@ async function main() {
     rcon = new RconClient(args.rconHost, args.rconPort, args.rconPassword)
     await rcon.connect()
     console.log(`[rcon] connected to ${args.rconHost}:${args.rconPort}`)
+    if (args.gamemode === 'spectator') {
+      await rcon.command('gamerule spectatorsGenerateChunks true')
+      console.log('[rcon] spectatorsGenerateChunks=true')
+    }
     teleportTimer = setInterval(() => driveTeleports(rcon, clients, args).catch(error => {
       if (stopping) return
       metrics.errors++
@@ -709,28 +942,77 @@ async function main() {
 
   await sleep(args.duration * 1000)
   stopping = true
+  const measurementCompletedAt = Date.now()
+  const measuredMetrics = { ...metrics }
   clearInterval(progressTimer)
   if (teleportTimer) clearInterval(teleportTimer)
+  const rconSummary = rcon ? await collectRconSummary(rcon, metrics) : null
   for (const client of clients) client.close()
   if (rcon) rcon.close()
   await sleep(1000)
 
-  const elapsed = (Date.now() - startedAt) / 1000
+  const elapsed = (measurementCompletedAt - startedAt) / 1000
   const final = {
+    schemaVersion: 1,
+    startedAt: runStartedAt.toISOString(),
+    measurementStartedAt: new Date(startedAt).toISOString(),
+    measurementCompletedAt: new Date(measurementCompletedAt).toISOString(),
+    completedAt: new Date().toISOString(),
+    minecraftProfile: args.mcVersion,
+    protocolVersion: PROTOCOLS[args.mcVersion].protocolVersion,
+    host: args.host,
+    port: args.port,
+    requestedDurationSeconds: args.duration,
     seconds: Number(elapsed.toFixed(1)),
     clients: args.clients,
-    connected: metrics.connected,
-    inPlay: metrics.inPlay,
-    moves: metrics.moves,
-    teleports: metrics.teleports,
-    positionPackets: metrics.positionPackets,
-    chunks: metrics.chunks,
-    batches: metrics.batches,
+    connected: measuredMetrics.connected,
+    inPlay: measuredMetrics.inPlay,
+    moves: measuredMetrics.moves,
+    teleports: measuredMetrics.teleports,
+    positionPackets: measuredMetrics.positionPackets,
+    chunks: measuredMetrics.chunks,
+    batches: measuredMetrics.batches,
     errors: metrics.errors,
-    chunksPerSecond: Number((metrics.chunks / elapsed).toFixed(2))
+    chunksPerSecond: Number((measuredMetrics.chunks / elapsed).toFixed(2)),
+    route: {
+      mode: args.rconTeleport ? 'rcon-teleport' : 'movement',
+      gamemode: args.gamemode || null,
+      teleportIntervalMs: args.rconTeleport ? args.teleportInterval : null,
+      teleportStep: args.rconTeleport ? args.teleportStep : null,
+      teleportY: args.rconTeleport ? args.teleportY : null,
+      sessionId: args.reuseNames ? null : args.sessionId,
+      reusedNames: args.reuseNames
+    },
+    rcon: rconSummary
   }
   console.log(`[final] ${JSON.stringify(final)}`)
+  if (args.jsonOutput) writeJsonResult(args.jsonOutput, final)
   if (metrics.inPlay === 0 || metrics.chunks === 0 || metrics.errors > 0) process.exitCode = 1
+}
+
+async function collectRconSummary(rcon, metrics) {
+  try {
+    const status = await rcon.command('antixray status')
+    const config = await rcon.command('antixray config')
+    const profile = await rcon.command('antixray profile')
+    return {
+      status: status.body,
+      config: config.body,
+      profile: profile.body
+    }
+  } catch (error) {
+    metrics.errors++
+    console.error(`[rcon] summary error: ${error.message}`)
+    return { error: error.message }
+  }
+}
+
+function writeJsonResult(outputPath, result) {
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+  const temporaryPath = `${outputPath}.tmp-${process.pid}`
+  fs.writeFileSync(temporaryPath, `${JSON.stringify(result, null, 2)}\n`, 'utf8')
+  fs.renameSync(temporaryPath, outputPath)
+  console.log(`[json] wrote ${outputPath}`)
 }
 
 function sleep(ms) {
@@ -754,6 +1036,10 @@ async function driveTeleports(rcon, clients, args) {
     await rcon.command(`tp ${client.username} ${x.toFixed(1)} ${y.toFixed(1)} ${z.toFixed(1)}`)
     client.metrics.teleports++
   }
+}
+
+function packetMatches(actual, expected) {
+  return Array.isArray(expected) ? expected.includes(actual) : actual === expected
 }
 
 function once(emitter, event) {

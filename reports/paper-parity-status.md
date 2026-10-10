@@ -1,6 +1,6 @@
 # Paper Anti-Xray Parity Status
 
-Last checked: 2026-06-28
+Last checked: 2026-10-10
 
 ## Scope
 
@@ -9,13 +9,40 @@ Meow Anti-Xray tracks Paper-style anti-xray behavior for Fabric and NeoForge ded
 ## Upstream Baseline
 
 - Paper repository: `https://github.com/PaperMC/Paper`
-- Paper `main`: `76d2ac758cb3abe75aceefa88207443768f585c6`
+- Paper `main`: `46d4834e8e2ec4af9dcfa028076fb16dfb8a3911`
 - Paper `ver/1.21.11`: `c5eb0790f199da6c38d0a650e1e5cd5415b28185`
 - Key Paper files to recheck:
   - `paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketBlockControllerAntiXray.java`
   - `paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketInfoAntiXray.java`
   - `paper-server/src/main/java/io/papermc/paper/antixray/ChunkPacketInfo.java`
   - `WorldConfiguration.Anticheat.AntiXray`
+
+## Previous Recheck (2026-08-27)
+
+2026-08-27 rechecked Paper `main` at `bb09b431d24f586da72ee7c4aa2e8cff2b32a478` against the previous project baseline `0a993450f129c4942c2a9ed45ba047412b4667cf`.
+
+- Paper `main` advanced by 33 commits; the latest commit is `Bump spark integration to version 1.10.180 (#14214)` from 2026-08-25.
+- GitHub compare shows no changed files under Paper's anti-xray implementation paths and no `WorldConfiguration.java` change.
+- The only nearby match in the full compare is an unrelated `paper-api` `ExplosionResult` cleanup; it does not affect anti-xray behavior.
+- No Meow Anti-Xray code change is required.
+
+2026-08-03 rechecked Paper `main` at `0a993450f129c4942c2a9ed45ba047412b4667cf` against the previous project baseline `a313ca15477cf331c859f329d548eeef31ded16b`.
+
+- Paper `main` advanced by 46 commits; the latest commit is `Add Player#unsetFixedPose (#12853)` from 2026-08-02.
+- GitHub compare shows no changed files under Paper's anti-xray implementation paths and no `WorldConfiguration.java` change.
+- The key anti-xray files still exist at the same paths:
+  - `ChunkPacketBlockControllerAntiXray.java`
+  - `ChunkPacketInfoAntiXray.java`
+  - `ChunkPacketInfo.java`
+  - `WorldConfiguration.java`
+- No Meow Anti-Xray code change is required.
+
+2026-07-09 rechecked Paper `main` at `a313ca15477cf331c859f329d548eeef31ded16b` against the previous project baseline `76d2ac758cb3abe75aceefa88207443768f585c6`.
+
+- Anti-xray config fields and defaults are unchanged.
+- `ChunkPacketBlockControllerAntiXray` changed `onPlayerLeftClickBlock` to accept `Level` directly instead of `ServerPlayerGameMode`, then still calls `updateNearbyBlocks` on that same level.
+- The rest of the diff in `WorldConfiguration.java` is unrelated entity type API renaming.
+- No Meow Anti-Xray code change is required: the mod already resolves `ServerLevel` from the player in `ServerPlayerGameModeMixin` and passes that level into its Paper-style neighbor update path.
 
 ## Current Progress
 
@@ -50,3 +77,11 @@ Practical behavior/config parity is high, roughly 85%. Internal implementation p
 2. Keep parity tests for engine modes, replacement targets, neighbor reveal shapes, lava exposure, transparent overrides, and bit storage thresholds green on both supported branches.
 3. If Paper changes anti-xray defaults, target selection, or random selection logic, update `main` first, then cherry-pick only the behavior fix to `maintenance/26.1.x` if it is compatible with 26.1.x mappings and loader APIs.
 4. Keep implementation differences documented when they are caused by loader-layer constraints rather than missing work.
+
+
+## 2026-10-10 unified-release gate
+
+- Upstream Paper `main`: `46d4834e8e2ec4af9dcfa028076fb16dfb8a3911`, fetched and compared with the previous `bb09b431d24f586da72ee7c4aa2e8cff2b32a478` baseline.
+- Anti-xray changes only adjust native packet construction: `getChunkPacketInfo` / `ChunkPacketInfoAntiXray` now take the chunk without a packet, and `ChunkPacketInfo` receives the packet afterward through `setChunkPacket`.
+- No anti-xray algorithm or configuration-default change appears in this diff. `WorldConfiguration` changes concern chunk unload tuning and feature-seed types, outside anti-xray.
+- No shared behavior backport is required. The mod still owns its Fabric/NeoForge packet snapshot path and must use each Minecraft line's accessor (`getChunkData()` on 26.1/26.2, `chunkData()` on 26.3).

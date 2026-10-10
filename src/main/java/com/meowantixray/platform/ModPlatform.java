@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Optional;
 import net.minecraft.server.level.ServerPlayer;
+import org.eclipse.jdt.annotation.NonNull;
 
 public interface ModPlatform {
     LoaderType loaderType();
@@ -16,7 +17,7 @@ public interface ModPlatform {
 
     Optional<String> modVersion(String modId);
 
-    Collection<LoadedModInfo> loadedMods();
+    Collection<@NonNull LoadedModInfo> loadedMods();
 
     default boolean hasPermission(ServerPlayer player, String permissionNode) {
         return false;
