@@ -18,7 +18,7 @@ param(
     [switch] $Upload,
     [switch] $SkipBuild,
     [string] $Version,
-    [string[]] $GameVersions = @("26.3"),
+    [string[]] $GameVersions = @("26.2"),
     [string] $ProjectId = "8pl8obwY",
     [string] $ProjectSlug = "meowanti-xray",
     [string] $FabricApiProjectId = "P7dR8mSH",

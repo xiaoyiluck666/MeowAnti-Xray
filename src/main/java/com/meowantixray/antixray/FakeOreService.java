@@ -420,7 +420,7 @@ public final class FakeOreService {
         statObfuscatedBlocks.add(changedBlocks);
 
         byte[] rewritten = rewriteSections(originalBuffer, sourceSectionSizes, modifiedSections, sectionByteOverrides);
-        ((ClientboundLevelChunkPacketDataAccessor) packet.chunkData()).meowconsole$setBuffer(rewritten);
+        ((ClientboundLevelChunkPacketDataAccessor) packet.getChunkData()).meowconsole$setBuffer(rewritten);
         } finally {
             recordDuration(statChunkRewriteTasks, statChunkRewriteNanos, statChunkRewriteMaxNanos, System.nanoTime() - startNano);
         }
@@ -1741,7 +1741,7 @@ public final class FakeOreService {
                 statObfuscatedChunks.increment();
                 statObfuscatedSections.add(result.changedSections());
                 statObfuscatedBlocks.add(result.changedBlocks());
-                ((ClientboundLevelChunkPacketDataAccessor) sendContext.packet().chunkData()).meowconsole$setBuffer(result.rewrittenBuffer());
+                ((ClientboundLevelChunkPacketDataAccessor) sendContext.packet().getChunkData()).meowconsole$setBuffer(result.rewrittenBuffer());
             }
             sendPacket(sendContext);
         } finally {
@@ -2957,7 +2957,7 @@ public final class FakeOreService {
             level.getChunkSource().getChunkNow(MinecraftCompat.chunkX(chunk.getPos()) + 1, MinecraftCompat.chunkZ(chunk.getPos())),
             level.getChunkSource().getChunkNow(MinecraftCompat.chunkX(chunk.getPos()), MinecraftCompat.chunkZ(chunk.getPos()) - 1),
             level.getChunkSource().getChunkNow(MinecraftCompat.chunkX(chunk.getPos()), MinecraftCompat.chunkZ(chunk.getPos()) + 1),
-            ((ClientboundLevelChunkPacketDataAccessor) packet.chunkData()).meowconsole$getBuffer(),
+            ((ClientboundLevelChunkPacketDataAccessor) packet.getChunkData()).meowconsole$getBuffer(),
             sourceSectionSizes,
             sourceSectionOffsets,
             MinecraftCompat.minBuildY(level),

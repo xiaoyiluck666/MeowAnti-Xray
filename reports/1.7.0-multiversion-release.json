@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-10",
+  "artifacts": [
+    {
+      "version": "1.7.0+mc26.1.x.fabric",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loader": "fabric",
+      "file": "meowantixray-fabric-1.7.0.jar",
+      "bytes": 190738,
+      "sha1": "3e652b214debb0e0e3c07da4cd7922948830579d",
+      "sha512": "728c23e238d7e7c498cdb81d1720a90baf209ac55c53cdbac5029263b547a1e7d7d0ea56339e2b282651563e68ade3e7e742cb4baf0c2f782a58a994a678b8bd"
+    },
+    {
+      "version": "1.7.0+mc26.1.x.neoforge",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loader": "neoforge",
+      "file": "meowantixray-neoforge-1.7.0.jar",
+      "bytes": 189289,
+      "sha1": "e9c7f09e4234efcebff96b99c6f7a96b44ac0b9a",
+      "sha512": "bac65abeca7e204fdcfec1506990a27530b84fa30ae699d63a71080edb80ad5ee3c45b15df1305ae90b367d725330e48dd544de53f45ba17c8133e4ee6ee55d0"
+    },
+    {
+      "version": "1.7.0+mc26.2.fabric",
+      "minecraft": [
+        "26.2"
+      ],
+      "loader": "fabric",
+      "file": "meowantixray-fabric-1.7.0.jar",
+      "bytes": 190736,
+      "sha1": "74650607ae13a082696eb873a29eaaf1711b98e9",
+      "sha512": "7d2c92633f0b6adb8c0675aade352c159a9997abf4dd8ccbb0e715ca9cbdf3d4cb5e305e6f0e03c106235eb4433124a2bb97e6b4117f044932030e339fadcd12"
+    },
+    {
+      "version": "1.7.0+mc26.2.neoforge",
+      "minecraft": [
+        "26.2"
+      ],
+      "loader": "neoforge",
+      "file": "meowantixray-neoforge-1.7.0.jar",
+      "bytes": 188401,
+      "sha1": "2ebe5c671fd6483b176a4cffefdcb9b9b46777c9",
+      "sha512": "1d184e3fe5e92b20744b3051ebf44d9165a576e95800ad7c9f2e44c7311580615c1dbbc1113053796c4df7a793d9b00c6cf892bb2494cf983abc8752649d636d"
+    },
+    {
+      "version": "1.7.0+mc26.3.fabric",
+      "minecraft": [
+        "26.3"
+      ],
+      "loader": "fabric",
+      "file": "meowantixray-fabric-1.7.0.jar",
+      "bytes": 190728,
+      "sha1": "05d96f2c280d63f4fcaa79621cba704019acd602",
+      "sha512": "4a1efe4d13a67ef71d291216eb78ea71b647b62da4feb51891f47eeb2e0cba05b460a8eb4fe7f0579a18b2956f7c51cf135d114d154787a7339f0cc6c994713c"
+    },
+    {
+      "version": "1.7.0+mc26.3.neoforge",
+      "minecraft": [
+        "26.3"
+      ],
+      "loader": "neoforge",
+      "file": "meowantixray-neoforge-1.7.0.jar",
+      "bytes": 188386,
+      "sha1": "cc8c001ee51e538d7943bb85a52e31d52b756a85",
+      "sha512": "cde3eb69478fd73a3d817269fbf0fd38a9c4ccff3a8868e86432033a2e647b299b2f74f53deaee1f23189e8b2ac9efcfd3a36fb5bbac7b3b0722b01c344439a9"
+    }
+  ],
+  "standaloneSmoke": [
+    {
+      "minecraft": "26.1",
+      "loader": "fabric",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 2728,
+      "errors": 0,
+      "rewriteTasks": 2729,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": null
+    },
+    {
+      "minecraft": "26.1",
+      "loader": "neoforge",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 2498,
+      "errors": 0,
+      "rewriteTasks": 2498,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": true
+    },
+    {
+      "minecraft": "26.1.1",
+      "loader": "fabric",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 2791,
+      "errors": 0,
+      "rewriteTasks": 2791,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": null
+    },
+    {
+      "minecraft": "26.1.1",
+      "loader": "neoforge",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 2644,
+      "errors": 0,
+      "rewriteTasks": 2644,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": true
+    },
+    {
+      "minecraft": "26.1.2",
+      "loader": "fabric",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 2561,
+      "errors": 0,
+      "rewriteTasks": 2561,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": null
+    },
+    {
+      "minecraft": "26.1.2",
+      "loader": "neoforge",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 5850,
+      "errors": 0,
+      "rewriteTasks": 5850,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": true
+    },
+    {
+      "minecraft": "26.2",
+      "loader": "fabric",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 7608,
+      "errors": 0,
+      "rewriteTasks": 7608,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": null
+    },
+    {
+      "minecraft": "26.2",
+      "loader": "neoforge",
+      "clients": 2,
+      "seconds": 25,
+      "chunks": 7107,
+      "errors": 0,
+      "rewriteTasks": 7107,
+      "configSha256": "3de6496cc50589c93947a77d02fb9b7dfd03e6b5742cfca24d69381cd7f604d2",
+      "blockBreakProbe": null
+    }
+  ],
+  "publication": "pending new 26.1.x and 26.2 uploads"
+}

@@ -11,17 +11,23 @@ Meow Anti-Xray is a server-side Minecraft mod focused on Paper-like anti-xray pr
 - Safe configuration workflow for server owners: read-only `/antixray config`, dry-run `/antixray validate`, and atomic `/antixray reload` that retains the last-known-good protection on failure.
 - Cleaner console and RCON command output, with stable `minecraft:*` dimension ids in inspect results.
 - Async Modrinth update checks on server startup, with the latest result shown in `/antixray status`.
+- Optional anonymous bStats usage metrics for counting active servers and basic runtime versions.
 - Server commands: `/antixray`, `/antixray status`, `/antixray config`, `/antixray validate`, `/antixray reload`, `/antixray profile`, `/antixray debug <world> <x> <y> <z>`, `/antixray inspect <world> <x> <y> <z>`.
 
 ## Compatibility
 
-Meow Anti-Xray `1.5.0` targets Minecraft `26.2` and Java `25`.
+Meow Anti-Xray `1.7.0` supports Minecraft `26.1`, `26.1.1`, `26.1.2`, `26.2`, and `26.3` with separate builds for each Minecraft support line and loader. All builds require Java `25`.
 
-- Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
-- NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
-- The repeatable dual-loader pressure matrix is recorded at [reports/1.5.0-pressure-matrix.md](reports/1.5.0-pressure-matrix.md).
-- The Minecraft 26.2 pressure-test report is available at [reports/1.3.0-minecraft-26.2-pressure-report.md](reports/1.3.0-minecraft-26.2-pressure-report.md).
-- Minecraft `26.1.x` remains supported on the `1.2.x` maintenance line. Use the latest `1.2.x` build for `26.1`, `26.1.1`, or `26.1.2`; use `1.5.x` for `26.2`.
+| Minecraft | Mod version | Fabric Loader | Fabric API | NeoForge |
+| --- | --- | --- | --- | --- |
+| `26.3` | `1.7.0` | `>=0.19.5` | `>=0.161.0+26.3` | `>=26.3.0.16-beta` |
+| `26.2` | `1.7.0` | `>=0.19.5` | `>=0.158.0+26.2` | `>=26.2.0.69` |
+| `26.1` / `26.1.1` / `26.1.2` | `1.7.0` | `>=0.19.5` | `>=0.144.0+26.1` | `>=26.1.0.19-beta` |
+
+Choose the file matching both your Minecraft support line and loader. Fabric API and NeoForge must also match the server's Minecraft version. Fabric Loader 0.19.5 includes the MixinExtras compatibility required by the new builds.
+
+- The repeatable Minecraft 26.2 dual-loader pressure matrix is recorded at [reports/1.5.0-pressure-matrix.md](reports/1.5.0-pressure-matrix.md).
+- Version-specific 1.7.0 release checks are recorded at [reports/1.7.0-multiversion-release.md](reports/1.7.0-multiversion-release.md).
 
 ## Configuration
 
@@ -51,6 +57,8 @@ anti-xray:
 
 Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted YAML values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported.
 Explicit empty inline lists such as `hidden-blocks: []` and `replacement-blocks: []` are also preserved as intentional user config.
+
+bStats is configured separately at `config/meowantixray-bstats.properties`. It stores a random server UUID and sends only anonymous aggregate data. Set `enabled=false` to opt out. After the bStats service for this mod is registered, set its numeric `service-id` in this file; the default `0` keeps reporting disabled until that registration is complete.
 
 ## Commands
 

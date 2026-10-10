@@ -13,46 +13,9 @@ const PROTOCOLS = {
     clientbound: {
       LOGIN_SET_COMPRESSION: 0x03,
       LOGIN_SUCCESS: 0x02,
-      LOGIN_COOKIE_REQUEST: 0x04,
-      CONFIG_FINISH: 0x03,
-      CONFIG_COOKIE_REQUEST: 0x04,
-      CONFIG_PLUGIN_MESSAGE: 0x05,
-      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
-      CONFIG_PING: 0x13,
-      CONFIG_CODE_OF_CONDUCT: -1,
-      PLAY_CHUNK_BATCH_START: 0x0c,
-      PLAY_CHUNK_BATCH_FINISHED: 0x0b,
-      PLAY_KEEP_ALIVE: 0x2c,
-      PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
-      PLAY_PING: 0x3d,
-      PLAY_PLAYER_POSITION: 0x48
-    },
-    serverbound: {
-      LOGIN_ACKNOWLEDGED: 0x03,
-      LOGIN_COOKIE_RESPONSE: 0x02,
-      CONFIG_CLIENT_INFORMATION: 0x00,
-      CONFIG_COOKIE_RESPONSE: 0x04,
-      CONFIG_PLUGIN_MESSAGE: 0x05,
-      CONFIG_SELECT_KNOWN_PACKS: 0x07,
-      CONFIG_PONG: 0x09,
-      CONFIG_ACCEPT_CODE_OF_CONDUCT: -1,
-      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
-      PLAY_ACCEPT_TELEPORTATION: 0x00,
-      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
-      PLAY_TICK_END: 0x0d,
-      PLAY_KEEP_ALIVE: 0x1c,
-      PLAY_POSITION_LOOK: 0x1f,
-      PLAY_PONG: 0x2c,
-      PLAY_PLAYER_LOADED: 0x2c
-    }
-  },
-  '26.2': {
-    protocolVersion: 776,
-    clientbound: {
-      LOGIN_SET_COMPRESSION: 0x03,
-      LOGIN_SUCCESS: 0x02,
       LOGIN_COOKIE_REQUEST: 0x05,
       CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       CONFIG_COOKIE_REQUEST: 0x00,
       CONFIG_PLUGIN_MESSAGE: 0x01,
       CONFIG_SELECT_KNOWN_PACKS: 0x0e,
@@ -75,6 +38,47 @@ const PROTOCOLS = {
       CONFIG_PONG: 0x05,
       CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
       CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
+  '26.2': {
+    protocolVersion: 776,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0e,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x13,
+      PLAY_CHUNK_BATCH_START: 0x0c,
+      PLAY_CHUNK_BATCH_FINISHED: 0x0b,
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: 0x2d,
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       PLAY_ACCEPT_TELEPORTATION: 0x00,
       PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
       PLAY_TICK_END: 0x0d,
@@ -91,6 +95,7 @@ const PROTOCOLS = {
       LOGIN_SUCCESS: 0x02,
       LOGIN_COOKIE_REQUEST: 0x05,
       CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       CONFIG_COOKIE_REQUEST: 0x00,
       CONFIG_PLUGIN_MESSAGE: 0x01,
       CONFIG_SELECT_KNOWN_PACKS: 0x0f,
@@ -113,6 +118,7 @@ const PROTOCOLS = {
       CONFIG_PONG: 0x05,
       CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
       CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       PLAY_ACCEPT_TELEPORTATION: 0x00,
       PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
       PLAY_TICK_END: 0x0d,
@@ -129,6 +135,7 @@ const PROTOCOLS = {
       LOGIN_SUCCESS: 0x02,
       LOGIN_COOKIE_REQUEST: 0x05,
       CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       CONFIG_COOKIE_REQUEST: 0x00,
       CONFIG_PLUGIN_MESSAGE: 0x01,
       CONFIG_SELECT_KNOWN_PACKS: 0x0e,
@@ -151,6 +158,7 @@ const PROTOCOLS = {
       CONFIG_PONG: 0x05,
       CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
       CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       PLAY_ACCEPT_TELEPORTATION: 0x00,
       PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
       PLAY_TICK_END: 0x0d,
@@ -167,6 +175,7 @@ const PROTOCOLS = {
       LOGIN_SUCCESS: 0x02,
       LOGIN_COOKIE_REQUEST: 0x05,
       CONFIG_FINISH: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       CONFIG_COOKIE_REQUEST: 0x00,
       CONFIG_PLUGIN_MESSAGE: 0x01,
       CONFIG_SELECT_KNOWN_PACKS: 0x0f,
@@ -189,6 +198,7 @@ const PROTOCOLS = {
       CONFIG_PONG: 0x05,
       CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
       CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      CONFIG_KEEP_ALIVE: 0x04,
       PLAY_ACCEPT_TELEPORTATION: 0x00,
       PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
       PLAY_TICK_END: 0x0d,
@@ -204,7 +214,7 @@ function parseArgs(argv) {
   const args = {
     host: '127.0.0.1',
     port: 25565,
-    mcVersion: '26.3',
+    mcVersion: '26.2',
     clients: 1,
     duration: 60,
     name: 'LoadBot',
@@ -375,7 +385,7 @@ Usage:
 Options:
   --host <host>                 Server host, default 127.0.0.1
   --port <port>                 Server port, default 25565
-  --mc-version <version>        Protocol profile: 26.3, 26.3-neoforge, 26.2, 26.2-neoforge, or 26.1.2; default 26.3
+  --mc-version <version>        Protocol profile: 26.3, 26.3-neoforge, 26.2, 26.2-neoforge, or 26.1.2; default 26.2
   --clients <n>                 Number of fake network clients, default 1
   --duration <seconds>          Test duration after launch, default 60
   --name <prefix>               Username prefix, default LoadBot
@@ -653,6 +663,11 @@ class LoadClient {
       if (key) this.send(this.serverbound.LOGIN_COOKIE_RESPONSE, Buffer.concat([varInt(key.value), bool(false)]))
       return
     }
+    if (id === 0x04) {
+      const query = readVarInt(payload, 0)
+      if (query) this.send(0x02, Buffer.concat([varInt(query.value), bool(false)]))
+      return
+    }
     this.noise('login', id, payload)
   }
 
@@ -663,6 +678,10 @@ class LoadClient {
       this.metrics.inPlay++
       this.send(this.serverbound.CONFIG_FINISH_ACKNOWLEDGED)
       if (!this.args.rconTeleport) this.moveTimer = setInterval(() => this.move(), this.args.moveInterval)
+      return
+    }
+    if (id === this.clientbound.CONFIG_KEEP_ALIVE && payload.length === 8) {
+      this.send(this.serverbound.CONFIG_KEEP_ALIVE, payload)
       return
     }
     if (id === this.clientbound.CONFIG_COOKIE_REQUEST) {
