@@ -1,113 +1,51 @@
 # 🛡️ Meow Anti-Xray
 
-> Server-side anti-xray for Fabric and NeoForge survival servers.<br>
-> ⛏️ Paper-style ore obfuscation, 🚀 no client install, 🔌 one shared core across both loaders.
+💎 **Hide unexposed ores** before chunk data reaches X-ray clients.
 
-`Meow Anti-Xray` focuses on one job: bringing a Paper-like anti-xray experience to modded dedicated servers. Players join normally with a vanilla or modded client, while the server rewrites chunk packets before they are sent, hiding unexposed valuable blocks from xray clients.
+🚀 **Install it on the server only** - players need no client mod.
 
-This project was split from `MeowConsole` and now contains only anti-xray functionality. Console utilities, sleep features, player-message helpers, and unrelated tools were removed so the mod stays lightweight, focused, and easier to profile.
-
-## ✨ Why Use Meow Anti-Xray
-
-- 🚀 **Server-side only**: Install it on the server; players do not need to install anything.
-- 🧭 **Paper-style behavior**: Uses an engine mode 2 inspired default setup and tracks Paper-style hidden blocks, replacement blocks, reveal updates, and neighbor refresh behavior.
-- 🔌 **Built for modded servers**: Fabric and NeoForge share the same anti-xray core, keeping configuration and behavior aligned across loaders.
-- 🧱 **Safer decoys**: Block entities such as chests and ender chests are excluded from fake ore candidates, reducing visual glitches and confusing client-side states.
-- ⚡ **Stable under exploration load**: Async chunk packet rewriting uses bounded backpressure to avoid unbounded snapshot queues and memory spikes.
-- 📊 **Config checks without risky fallback**: `/antixray config` shows the active configuration, `/antixray validate` checks the file on disk without applying it, and `/antixray reload` applies only validated changes atomically. Failures preserve both the file and last-known-good protection.
-
-## 🧩 Features
-
-- 💎 Hides diamonds, ancient debris, redstone, lapis, gold, and other valuable blocks.
-- 🪨 Replaces hidden blocks client-side with configurable decoy states.
-- 🔍 Reveals nearby real blocks when players mine, start breaking blocks, or explosions modify terrain.
-- 🌍 Supports separate settings for the Overworld, Nether, End, and custom dimensions.
-- ⚙️ Supports per-dimension height ranges, hidden block lists, replacement block lists, and enable switches.
-- 🔐 Supports permission bypass through `paper.antixray.bypass` or a custom permission node.
-- 📣 Checks Modrinth for updates asynchronously and shows the latest status in `/antixray status`.
-
-## 🌐 Compatibility
-
-Version `1.5.0` targets Minecraft `26.2` and Java `25`:
-
-- Fabric: Fabric Loader `>=0.19.3`, Fabric API `>=0.153.0+26.2`, Minecraft `>=26.2 <26.3`.
-- NeoForge: NeoForge `>=26.2.0.7-beta`, Minecraft `[26.2,26.3)`.
-
-## ⚙️ Performance Model
-
-The expensive part of anti-xray protection happens when players load new chunks. Meow Anti-Xray moves chunk packet rewriting away from the main thread when possible and limits queued async work with `async-queue-size`:
-
-```yml
-anti-xray:
-  async-chunk-rewrite: true
-  async-worker-threads: 1
-  async-queue-size: 16
-```
-
-The default favors memory safety. Servers with more memory or heavy exploration traffic can try `32` or `64`, then use `/antixray profile` to watch for sync fallback and rewrite timings.
-
-Paper can hook directly into vanilla chunk packet serialization. A Fabric / NeoForge mod has to keep enough snapshot data to rewrite packets safely across loaders. This project aims for Paper-style protection with an implementation tuned for the mod loader environment, not a line-by-line copy of Paper internals.
-
-## 📈 Stress-Tested
-
-Meow Anti-Xray has been tested with real exploration and heavy chunk-loading workloads. The numbers below come from local Fabric / NeoForge dev servers, spark profiler reports, and the project's network fake-player load runner. The goal was to verify stable chunk packet rewriting under real loading pressure.
-
-| Scenario | Result |
-| --- | --- |
-| 🧪 Fabric 1.5.0 default queue with 8 network fake players | Three 90-second samples averaged `427.17 chunks/s`, `0` client errors |
-| 🔥 NeoForge 1.5.0 default queue with 8 network fake players | Three 90-second samples averaged `390.07 chunks/s`, `0` client errors |
-| 🚀 Fabric queue=32 tuning screen | Three samples averaged `497.28 chunks/s`; kept as a manual tuning option |
-| 🚀 NeoForge queue=32 tuning screen | Three samples averaged `462.82 chunks/s`; watch pressure in `/antixray profile` |
-| 🛡️ Default policy | `async-queue-size=16`, favoring convergence and memory stability |
-
-The 1.5.0 dual-loader matrix shows that the default `16` gives the best balance between throughput, convergence, and pressure. Queues `32` and `64` can increase throughput, but reach saturated pressure more often; server owners should tune them only while watching `/antixray profile` and available memory. See `reports/1.5.0-pressure-matrix.md` for the complete matrix.
-
-- 🧪 Fabric real exploration: <https://spark.lucko.me/btQdhJh1gH>
-- 🔥 NeoForge 8 fake players, conservative default queue: <https://spark.lucko.me/yFi0jlgOf4>
-- 🚀 NeoForge 8 fake players, higher-throughput queue: <https://spark.lucko.me/FyVDZTMgHb>
-
-## 🌍 Good Fit For
-
-- 🧱 Fabric / NeoForge survival servers
-- 🤝 Public, semi-public, and friend-group servers
-- 🛡️ Servers that want strong anti-xray protection while staying in the modded ecosystem
-- 🗺️ Pregenerated worlds, high-view-distance servers, frequent teleport routes, and active exploration
-- 🐾 Servers migrating from the old MeowConsole built-in anti-xray module
-
-Pregeneration or chunk preloading does not bypass this mod. It works when chunk packets are sent to player clients; it does not modify stored world data. Web maps and offline renderers that read real chunk data directly need their own hiding or rendering configuration.
+🛡️ **Prevent ore-location leaks without false-positive punishments** - no behavior scoring or player accusations.
 
 ## 🚀 Quick Start
 
-1. Download the jar for your loader from Modrinth: use the Fabric file for Fabric servers and the NeoForge file for NeoForge servers.
-2. Put the jar in the server `mods` folder.
-3. Start the server once to generate:
+1. 📥 [Download the latest release](https://modrinth.com/mod/meowanti-xray/versions) for Fabric or NeoForge.
+2. 📁 Put the jar in the server's `mods` directory and start the server.
+3. ✅ Run `/antixray validate`, then `/antixray status` to confirm protection is active.
 
-```text
-config/meowantixray.yml
-```
+⚙️ Configuration is generated at `config/meowantixray.yml`. The defaults provide Paper-style engine mode 2 protection; per-dimension settings control hidden blocks, replacements, height ranges, permissions, and async capacity.
 
-4. Tune hidden blocks, replacement blocks, height ranges, and async settings for your server.
-5. Run `/antixray validate` first, then `/antixray reload`; use `/antixray status` and `/antixray profile` to check runtime state.
+## 🛡️ Prevention, Not Player Profiling
 
-Common config example:
+- 📦 **Before delivery:** chunk packets are rewritten before they reach the player.
+- 👁️ **Client view only:** unexposed ores look like ordinary blocks until the terrain is mined or changed; server world data remains untouched.
+- ⚖️ **No player profiling:** protection does not score mining behavior or label players as cheaters.
 
-```yml
-anti-xray:
-  engine-mode: 2
-  max-block-height: 64
-  hidden-blocks: ["minecraft:diamond_ore", "minecraft:deepslate_diamond_ore"]
-  replacement-blocks:
-    - minecraft:stone
-    - minecraft:deepslate
-  dimension-settings:
-    nether:
-      hidden-blocks:
-        - minecraft:ancient_debris
-      replacement-blocks:
-        - minecraft:netherrack
-```
+## ✨ Highlights
 
-Existing config files are supplemented with newly added missing keys during load without overwriting your values. Quoted values, quoted list items, inline lists, and dimension aliases such as `nether` / `end` are supported. Explicit empty inline lists such as `hidden-blocks: []` are also preserved as intentional configuration.
+- 🚀 **Server-side only:** vanilla and modded clients join normally.
+- 🔌 **Dual loader:** one anti-xray core for Fabric and NeoForge dedicated servers.
+- 🌍 **Per-dimension control:** configure the Overworld, Nether, End, and custom dimensions separately.
+- ✅ **Safe reloads:** `/antixray validate` checks changes before atomic `/antixray reload`; invalid changes keep the last-known-good protection active.
+- ⛏️ **Accurate reveals:** mining, block-breaking starts, explosions, and nearby changes reveal real blocks.
+- ⚡ **Bounded async work:** `/antixray profile` exposes rewrite pressure and timing.
+- 🔐 **Admin controls:** optional permission bypass and asynchronous Modrinth update checks.
+
+## 🌐 Compatibility
+
+| Minecraft | Release line | Fabric | NeoForge |
+| --- | --- | --- | --- |
+| `26.3` | `1.7.0` | ✅ | ✅ |
+| `26.2` | `1.7.0` | ✅ | ✅ |
+| `26.1`-`26.1.2` | `1.7.0` | ✅ | ✅ |
+
+All `1.7.0` builds require Java `25`. Choose the file matching both Minecraft and loader.
+
+- 🧵 **Fabric:** Loader `>=0.19.5`; Fabric API must match Minecraft (`26.3`: `>=0.161.0+26.3`; `26.2`: `>=0.158.0+26.2`; `26.1.x`: `>=0.144.0+26.1`).
+- 🔥 **NeoForge:** use the matching Minecraft line (`26.3`: `>=26.3.0.16-beta`; `26.2`: `>=26.2.0.69`; `26.1.x`: `>=26.1.0.19-beta`).
+
+## 📈 Performance Evidence
+
+🧪 **Repeated 8-client, 90-second samples:** Fabric averaged `427.17 chunks/s`, NeoForge averaged `390.07 chunks/s`, and both recorded `0` client errors. [Read the full pressure matrix](https://github.com/xiaoyiluck666/MeowAnti-Xray/blob/main/reports/1.5.0-pressure-matrix.md).
 
 ## 🧰 Commands
 
@@ -121,9 +59,11 @@ Existing config files are supplemented with newly added missing keys during load
 /antixray inspect <world> <x> <y> <z>
 ```
 
-## 🔗 Links
+## 🔗 Support and Links
 
-- GitHub: <https://github.com/xiaoyiluck666/MeowAnti-Xray>
-- Issues: <https://github.com/xiaoyiluck666/MeowAnti-Xray/issues>
-- Modrinth: <https://modrinth.com/mod/meowanti-xray>
-- Original MeowConsole project: <https://modrinth.com/mod/meowconsole>
+- 📖 [Documentation](https://github.com/xiaoyiluck666/MeowAnti-Xray#readme)
+- 💻 [Source code](https://github.com/xiaoyiluck666/MeowAnti-Xray)
+- 🐛 [Report a bug or request a feature](https://github.com/xiaoyiluck666/MeowAnti-Xray/issues/new/choose)
+- 📥 [Download on Modrinth](https://modrinth.com/mod/meowanti-xray)
+
+❤️ If the project saves your server administration time, you can support continued maintenance through [PayPal](https://www.paypal.com/paypalme/neworldcn) or [Afdian](https://afdian.com/a/xiaoyiluck).
