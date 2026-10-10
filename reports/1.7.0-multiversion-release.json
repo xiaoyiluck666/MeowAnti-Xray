@@ -162,5 +162,82 @@
       "blockBreakProbe": null
     }
   ],
-  "publication": "pending new 26.1.x and 26.2 uploads"
+  "publication": [
+    {
+      "version": "1.7.0+mc26.1.x.fabric",
+      "id": "8WJvTx5s",
+      "status": "listed",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loader": "fabric",
+      "url": "https://cdn.modrinth.com/data/8pl8obwY/versions/8WJvTx5s/meowantixray-fabric-1.7.0.jar",
+      "publishedAt": "2026-10-10T02:10:17.108558Z"
+    },
+    {
+      "version": "1.7.0+mc26.1.x.neoforge",
+      "id": "QhBYGBHB",
+      "status": "listed",
+      "minecraft": [
+        "26.1",
+        "26.1.1",
+        "26.1.2"
+      ],
+      "loader": "neoforge",
+      "url": "https://cdn.modrinth.com/data/8pl8obwY/versions/QhBYGBHB/meowantixray-neoforge-1.7.0.jar",
+      "publishedAt": "2026-10-10T02:10:19.888211Z"
+    },
+    {
+      "version": "1.7.0+mc26.2.fabric",
+      "id": "vMWdETU7",
+      "status": "listed",
+      "minecraft": [
+        "26.2"
+      ],
+      "loader": "fabric",
+      "url": "https://cdn.modrinth.com/data/8pl8obwY/versions/vMWdETU7/meowantixray-fabric-1.7.0.jar",
+      "publishedAt": "2026-10-10T02:10:10.227409Z"
+    },
+    {
+      "version": "1.7.0+mc26.2.neoforge",
+      "id": "cxc12pbD",
+      "status": "listed",
+      "minecraft": [
+        "26.2"
+      ],
+      "loader": "neoforge",
+      "url": "https://cdn.modrinth.com/data/8pl8obwY/versions/cxc12pbD/meowantixray-neoforge-1.7.0.jar",
+      "publishedAt": "2026-10-10T02:10:13.428768Z"
+    },
+    {
+      "version": "1.7.0+mc26.3.fabric",
+      "id": "ErSXH1ew",
+      "status": "listed",
+      "minecraft": [
+        "26.3"
+      ],
+      "loader": "fabric",
+      "url": "https://cdn.modrinth.com/data/8pl8obwY/versions/ErSXH1ew/meowantixray-fabric-1.7.0.jar",
+      "publishedAt": "2026-09-24T03:27:57.666736Z"
+    },
+    {
+      "version": "1.7.0+mc26.3.neoforge",
+      "id": "tQrz7WfD",
+      "status": "listed",
+      "minecraft": [
+        "26.3"
+      ],
+      "loader": "neoforge",
+      "url": "https://cdn.modrinth.com/data/8pl8obwY/versions/tQrz7WfD/meowantixray-neoforge-1.7.0.jar",
+      "publishedAt": "2026-09-24T03:28:01.065879Z"
+    }
+  ],
+  "sourceCommits": {
+    "main": "58ce09869c3bf0ef9345ddb102c6c9ab9caefdcd",
+    "maintenance/26.2.x": "14b7151d6cb8bb06735b20fbbdba99037b7918e3",
+    "maintenance/26.1.x": "2c38575e2a0e91001d5ee6fa5e12d71bbd02e528"
+  },
+  "listingVerified": true
 }
