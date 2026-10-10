@@ -12,7 +12,7 @@ The user approved a unified mod version, `1.7.0`, across all supported Minecraft
 | `maintenance/26.2.x` | `26.2` | `1.7.0` | `776` |
 | `maintenance/26.1.x` | `26.1`, `26.1.1`, `26.1.2` | `1.7.0` | `775` |
 
-The 26.3 release was published on 2026-09-24. The 26.2 and 26.1.x builds are in final release validation; see `reports/1.7.0-multiversion-release.md` for evidence and publication status.
+The 26.3 release was published on 2026-09-24. The 26.2 and 26.1.x builds were published on 2026-10-10. All six Minecraft/loader entries are listed and their file hashes and compatibility tags were verified; see `reports/1.7.0-multiversion-release.md`.
 
 ## Branch policy
 

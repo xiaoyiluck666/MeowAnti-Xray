@@ -7,6 +7,6 @@
 - Fabric Loader >=0.19.5 is required to match packaged MixinExtras processing. Old packet integration uses `getChunkData()`.
 - 2026-10-10: final Fabric/NeoForge tests pass, 56 each (112 total), zero failures/errors/skips; release jars built and metadata verified.
 - 2026-10-10: standalone packaged-jar startup, status/config/validate/reload, invalid reload preserving the disk file and last-known-good state, UTF-8 BOM, and two-client 25-second rewrite smoke pass for every advertised target. NeoForge 26.1.x additionally passes a real block-break event check on every patch version.
-- Publication: prepared; upload/readback pending. Full artifact hashes and evidence: `reports/1.7.0-multiversion-release.md` and `.json`.
+- Publication: listed and verified on 2026-10-10; Fabric `8WJvTx5s` / NeoForge `QhBYGBHB`. Modrinth tags and SHA512/SHA1 match the tested artifacts; downloaded CDN bytes were checked. Full artifact hashes and evidence: `reports/1.7.0-multiversion-release.md` and `.json`.
 - Commands/policy: `.codex/REFERENCE.md`; roadmap: `.codex/ROADMAP.md`.
 - Carried follow-up: bStats remains inactive with default `service-id=0`; activation/migration hardening is a separate task.
