@@ -84,6 +84,44 @@ const PROTOCOLS = {
       PLAY_PLAYER_LOADED: 0x2c
     }
   },
+  '26.3': {
+    protocolVersion: 777,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0f,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x14,
+      PLAY_CHUNK_BATCH_START: [0x0b, 0x0c],
+      PLAY_CHUNK_BATCH_FINISHED: [0x0a, 0x0b],
+      PLAY_KEEP_ALIVE: 0x2c,
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: [0x2d, 0x2e],
+      PLAY_PING: 0x3d,
+      PLAY_PLAYER_POSITION: 0x48
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
+  },
   '26.2-neoforge': {
     protocolVersion: 776,
     clientbound: {
@@ -121,6 +159,44 @@ const PROTOCOLS = {
       PLAY_PONG: 0x2d,
       PLAY_PLAYER_LOADED: 0x2c
     }
+  },
+  '26.3-neoforge': {
+    protocolVersion: 777,
+    clientbound: {
+      LOGIN_SET_COMPRESSION: 0x03,
+      LOGIN_SUCCESS: 0x02,
+      LOGIN_COOKIE_REQUEST: 0x05,
+      CONFIG_FINISH: 0x03,
+      CONFIG_COOKIE_REQUEST: 0x00,
+      CONFIG_PLUGIN_MESSAGE: 0x01,
+      CONFIG_SELECT_KNOWN_PACKS: 0x0f,
+      CONFIG_PING: 0x05,
+      CONFIG_CODE_OF_CONDUCT: 0x14,
+      PLAY_CHUNK_BATCH_START: [0x0b, 0x0c],
+      PLAY_CHUNK_BATCH_FINISHED: [0x0a, 0x0b],
+      PLAY_KEEP_ALIVE: [0x2b, 0x2c],
+      PLAY_LEVEL_CHUNK_WITH_LIGHT: [0x2d, 0x2e],
+      PLAY_PING: [0x3c, 0x3d],
+      PLAY_PLAYER_POSITION: [0x47, 0x48]
+    },
+    serverbound: {
+      LOGIN_ACKNOWLEDGED: 0x03,
+      LOGIN_COOKIE_RESPONSE: 0x04,
+      CONFIG_CLIENT_INFORMATION: 0x00,
+      CONFIG_COOKIE_RESPONSE: 0x01,
+      CONFIG_PLUGIN_MESSAGE: 0x02,
+      CONFIG_SELECT_KNOWN_PACKS: 0x07,
+      CONFIG_PONG: 0x05,
+      CONFIG_ACCEPT_CODE_OF_CONDUCT: 0x09,
+      CONFIG_FINISH_ACKNOWLEDGED: 0x03,
+      PLAY_ACCEPT_TELEPORTATION: 0x00,
+      PLAY_CHUNK_BATCH_RECEIVED: 0x0b,
+      PLAY_TICK_END: 0x0d,
+      PLAY_KEEP_ALIVE: 0x1c,
+      PLAY_POSITION_LOOK: 0x1f,
+      PLAY_PONG: 0x2d,
+      PLAY_PLAYER_LOADED: 0x2c
+    }
   }
 }
 
@@ -128,7 +204,7 @@ function parseArgs(argv) {
   const args = {
     host: '127.0.0.1',
     port: 25565,
-    mcVersion: '26.2',
+    mcVersion: '26.3',
     clients: 1,
     duration: 60,
     name: 'LoadBot',
@@ -299,7 +375,7 @@ Usage:
 Options:
   --host <host>                 Server host, default 127.0.0.1
   --port <port>                 Server port, default 25565
-  --mc-version <version>        Protocol profile: 26.2, 26.2-neoforge, or 26.1.2, default 26.2
+  --mc-version <version>        Protocol profile: 26.3, 26.3-neoforge, 26.2, 26.2-neoforge, or 26.1.2; default 26.3
   --clients <n>                 Number of fake network clients, default 1
   --duration <seconds>          Test duration after launch, default 60
   --name <prefix>               Username prefix, default LoadBot

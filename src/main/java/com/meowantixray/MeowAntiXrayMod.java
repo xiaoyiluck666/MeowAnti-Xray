@@ -5,6 +5,7 @@ import com.meowantixray.compat.MinecraftCompat;
 import com.meowantixray.platform.ModPlatform;
 import com.meowantixray.platform.PlatformHelper;
 import com.meowantixray.update.ModrinthUpdateChecker;
+import com.meowantixray.metrics.BStatsMetrics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.dedicated.DedicatedServer;
@@ -49,16 +50,19 @@ public final class MeowAntiXrayMod {
         LOGGER.info("Meow Anti-Xray enabled: {}", FAKE_ORE.describeConfig());
         LOGGER.info("Meow Anti-Xray startup complete. Author: {}", AUTHOR);
         ModrinthUpdateChecker.checkAsync();
+        BStatsMetrics.start(server, PlatformHelper.loaderType().modrinthLoaderId());
     }
 
     public static void onServerStopping(MinecraftServer server) {
         FAKE_ORE.shutdownAsyncExecutor();
         ModrinthUpdateChecker.shutdown();
+        BStatsMetrics.shutdown();
         CURRENT_SERVER = null;
     }
 
     public static void onServerTick(MinecraftServer server) {
         FAKE_ORE.onServerTick();
+        BStatsMetrics.recordServerTick(server);
     }
 
     public static void onPlayerDisconnect(ServerPlayer player) {

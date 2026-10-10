@@ -60,14 +60,14 @@ if (-not $AllowDirty -and -not [string]::IsNullOrWhiteSpace($gitStatus)) {
 $loaderSettings = if ($Loader -eq "fabric") {
     @{
         ServerRoot = Join-Path $repoRoot "run"
-        MinecraftProfile = "26.2"
+        MinecraftProfile = "26.3"
         DefaultPort = 25565
         DefaultRconPort = 25575
     }
 } else {
     @{
         ServerRoot = Join-Path $repoRoot "neoforge\run"
-        MinecraftProfile = "26.2-neoforge"
+        MinecraftProfile = "26.3-neoforge"
         DefaultPort = 25566
         DefaultRconPort = 25576
     }

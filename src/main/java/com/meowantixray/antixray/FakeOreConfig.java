@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.eclipse.jdt.annotation.NonNull;
 
 public final class FakeOreConfig {
     private static final Pattern RESOURCE_ID = Pattern.compile("(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+");
@@ -23,7 +24,7 @@ public final class FakeOreConfig {
         "mode2-obfuscate-replacement-blocks", "guarantee-hide-all-hidden-blocks",
         "lava-obscures", "use-permission", "async-chunk-rewrite"
     );
-    private static final Map<String, IntRange> INTEGER_KEYS = Map.of(
+    private static final Map<String, @NonNull IntRange> INTEGER_KEYS = Map.of(
         "engine-mode", new IntRange(1, 3),
         "max-block-height", new IntRange(-64, 320),
         "async-worker-threads", new IntRange(1, 4),

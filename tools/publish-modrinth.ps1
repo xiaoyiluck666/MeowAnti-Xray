@@ -18,7 +18,7 @@ param(
     [switch] $Upload,
     [switch] $SkipBuild,
     [string] $Version,
-    [string[]] $GameVersions = @("26.2"),
+    [string[]] $GameVersions = @("26.3"),
     [string] $ProjectId = "8pl8obwY",
     [string] $ProjectSlug = "meowanti-xray",
     [string] $FabricApiProjectId = "P7dR8mSH",
@@ -196,7 +196,7 @@ function Get-ModrinthDisplayGameVersion {
 
     $gameVersion = $Versions[0].Trim()
     if ($gameVersion -notmatch '^\d+\.\d+(?:\.x)?$') {
-        throw "Unsupported -GameVersions value '$gameVersion'. Expected a support line such as 26.2 or 26.1.x."
+        throw "Unsupported -GameVersions value '$gameVersion'. Expected a support line such as 26.3 or 26.1.x."
     }
     return "mc$gameVersion"
 }
@@ -216,10 +216,14 @@ function New-VersionPayload {
         version_number = $VersionNumber
         changelog = $Changelog
         dependencies = $Dependencies
-        game_versions = $GameVersions
+        game_versions = @(if ($GameVersions.Count -eq 1 -and $GameVersions[0] -eq "26.1.x") {
+            "26.1", "26.1.1", "26.1.2"
+        } else {
+            $GameVersions
+        })
         version_type = "release"
         loaders = @($Loader)
-        featured = $false
+        featured = $true
         status = "listed"
         requested_status = "listed"
         file_parts = @("file")
